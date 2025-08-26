@@ -1,147 +1,102 @@
-# ===============================
-# STREAMLIT APP - URGENCES DRÉPANOCYTAIRES
-# ===============================
+# app.py
 
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix
 
-# ===============================
-# Titre de l'application
-# ===============================
-st.title("Analyse et Prédiction des Urgences Drépanocytaires - USAD")
-st.markdown("Application interactive pour explorer les données, analyser et prédire les niveaux d'urgence des patients.")
+st.set_page_config(page_title="Analyse Urgences Drépanocytaires", layout="wide")
 
-# ===============================
-# Importation des données
-# ===============================
-st.header("Chargement des données")
-uploaded_file = st.file_uploader("Choisir le fichier CSV des urgences", type="csv")
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.success("Fichier chargé avec succès!")
+st.title("Analyse et Modélisation des Urgences Drépanocytaires")
+
+# --- Téléchargement direct depuis GitHub ---
+st.header("1. Chargement des données depuis GitHub")
+github_raw_url = "https://raw.githubusercontent.com/isseu181/MEMOIRE-MASTER/main/fichier_nettoye.xlsx"
+
+try:
+    df = pd.read_excel(github_raw_url)
+    st.success("Fichier chargé depuis GitHub avec succès !")
     st.dataframe(df.head())
-else:
-    st.warning("Veuillez charger le fichier CSV pour continuer.")
+except Exception as e:
+    st.error(f"Erreur lors du téléchargement du fichier : {e}")
     st.stop()
 
-# ===============================
-# Analyse descriptive univariée
-# ===============================
-st.header("Analyse descriptive univariée")
+# --- Analyse descriptive univariée ---
+st.header("2. Analyse descriptive univariée")
 
-# Variables catégorielles
-cat_cols = ['Sexe', 'Origine Géographique', 'Statut des parents (Vivants/Décédés)',
-            'Parents Salariés', 'Scolarité', 'Type de drépanocytose', 'NiveauUrgence']
+categorical_vars = df.select_dtypes(include='object').columns.tolist()
+numeric_vars = df.select_dtypes(include=np.number).columns.tolist()
 
-st.subheader("Distribution des variables catégorielles")
-for col in cat_cols:
-    st.write(f"**{col}**")
-    fig, ax = plt.subplots()
-    sns.countplot(data=df, x=col, palette="Set2", order=df[col].value_counts().index)
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
+st.subheader("Variables catégorielles")
+for col in categorical_vars:
+    st.write(f"### {col}")
+    st.bar_chart(df[col].value_counts())
 
-# Variables numériques
-num_cols = ['Âge du debut d etude en mois', 'HB (g/dl)', 'GB (/mm3)', 'PLT (/mm3)']
-st.subheader("Statistiques descriptives des variables numériques")
-st.write(df[num_cols].describe())
+st.subheader("Variables numériques")
+st.write(df[numeric_vars].describe())
 
-# ===============================
-# Analyse bivariée
-# ===============================
-st.header("Analyse bivariée")
-
-# Exemple : Type de drépanocytose vs NiveauUrgence
-st.subheader("Type de drépanocytose vs Niveau d'urgence")
-ct = pd.crosstab(df['Type de drépanocytose'], df['NiveauUrgence'])
+st.subheader("Histogrammes interactifs")
+selected_num = st.selectbox("Choisir une variable numérique à visualiser", numeric_vars)
 fig, ax = plt.subplots()
-ct.plot(kind='bar', stacked=True, ax=ax, colormap='Paired')
-plt.ylabel("Nombre de consultations")
+sns.histplot(df[selected_num].dropna(), kde=True, ax=ax)
 st.pyplot(fig)
 
-# Répartition mensuelle des urgences
-if 'Mois' in df.columns:
-    st.subheader("Répartition mensuelle des urgences")
-    fig, ax = plt.subplots()
-    sns.countplot(data=df, x='Mois', palette="coolwarm", order=df['Mois'].value_counts().index)
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
+# --- Analyse bivariée ---
+st.header("3. Analyse bivariée")
+target = "Evolution"
 
-# ===============================
-# Modélisation prédictive
-# ===============================
-st.header("Modélisation prédictive du Niveau d'Urgence")
+selected_cat = st.selectbox("Choisir une variable catégorielle pour comparer avec Evolution", categorical_vars)
+fig, ax = plt.subplots(figsize=(8,4))
+sns.countplot(x=selected_cat, hue=target, data=df, ax=ax)
+st.pyplot(fig)
 
-# Variables explicatives et cible
-features = ['Âge du debut d etude en mois', 'HB (g/dl)', 'GB (/mm3)', 'PLT (/mm3)',
-            'Sexe', 'Type de drépanocytose', 'Origine Géographique', 'Statut des parents (Vivants/Décédés)']
-target = 'NiveauUrgence'
+selected_num2 = st.selectbox("Choisir une variable numérique pour comparer avec Evolution", numeric_vars)
+fig, ax = plt.subplots(figsize=(8,4))
+sns.boxplot(x=target, y=selected_num2, data=df, ax=ax)
+st.pyplot(fig)
 
-df_model = df[features + [target]].dropna()
+# --- Préparation pour modélisation ---
+st.header("4. Préparation pour la modélisation")
+le = LabelEncoder()
+df_encoded = df.copy()
+for col in categorical_vars:
+    if df_encoded[col].nunique() <= 20:
+        df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
 
-# Encodage des variables catégorielles
-le_dict = {}
-for col in ['Sexe', 'Type de drépanocytose', 'Origine Géographique', 'Statut des parents (Vivants/Décédés)']:
-    le = LabelEncoder()
-    df_model[col] = le.fit_transform(df_model[col])
-    le_dict[col] = le
+feature_cols = st.multiselect("Choisir les variables explicatives pour la prédiction", df_encoded.columns.tolist(), default=numeric_vars + categorical_vars)
+X = df_encoded[feature_cols]
+y = le.fit_transform(df_encoded[target].astype(str))
 
-# Séparation Train/Test
-X = df_model[features]
-y = df_model[target]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-# Random Forest
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# --- Modélisation : Random Forest ---
+st.header("5. Modélisation prédictive (Random Forest)")
 rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
 rf_model.fit(X_train, y_train)
-
-# Prédictions
 y_pred = rf_model.predict(X_test)
 
-# Évaluation
-st.subheader("Évaluation du modèle")
-st.write("Accuracy:", round(accuracy_score(y_test, y_pred), 3))
+st.subheader("Performance du modèle")
 st.text(classification_report(y_test, y_pred))
 
-# Matrice de confusion
 cm = confusion_matrix(y_test, y_pred)
-fig_cm, ax = plt.subplots()
-sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
-ax.set_xlabel("Prédit")
-ax.set_ylabel("Réel")
-ax.set_title("Matrice de confusion")
-st.pyplot(fig_cm)
+fig, ax = plt.subplots()
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax)
+st.pyplot(fig)
 
-# Importance des variables
-st.subheader("Importance des variables")
-feat_imp = pd.DataFrame({'Feature': features, 'Importance': rf_model.feature_importances_}).sort_values(by='Importance', ascending=False)
-st.bar_chart(feat_imp.set_index('Feature'))
+# --- Visualisation interactive ---
+st.header("6. Visualisation interactive")
+selected_x = st.selectbox("Choisir une variable pour l'axe X", df_encoded.columns.tolist())
+selected_y = st.selectbox("Choisir une variable pour l'axe Y", df_encoded.columns.tolist())
+fig, ax = plt.subplots()
+sns.scatterplot(x=df_encoded[selected_x], y=df_encoded[selected_y], hue=df_encoded[target], ax=ax)
+st.pyplot(fig)
 
-# ===============================
-# Simulation d'un patient
-# ===============================
-st.header("Simulation d'un patient")
-st.markdown("Entrez les caractéristiques du patient pour prédire le niveau d'urgence:")
-
-sim_data = {}
-for col in features:
-    if col in le_dict:
-        options = le_dict[col].classes_
-        sim_data[col] = st.selectbox(col, options)
-    else:
-        sim_data[col] = st.number_input(col, value=int(df[col].median()))
-
-if st.button("Prédire le Niveau d'Urgence"):
-    sim_df = pd.DataFrame([sim_data])
-    # Encodage
-    for col in le_dict:
-        sim_df[col] = le_dict[col].transform(sim_df[col])
-    pred = rf_model.predict(sim_df)[0]
-    st.success(f"Niveau d'Urgence prédit pour ce patient : {pred}")
+st.success("Application prête ! Les données ont été téléchargées directement depuis GitHub.")
