@@ -33,23 +33,21 @@ if page == "Chapitre 1 : Cadre théorique":
 elif page == "Chapitre 2 : Analyse exploratoire":
     st.title("Analyse exploratoire des données")
     st.markdown("La base de données est chargée automatiquement depuis le dossier `data/`.")
-    
-    # Appel de l'EDA, avec la base intégrée
-    eda.show_eda()  # eda.py doit être configuré pour charger automatiquement le fichier dans `data/`
+    eda.show_eda()
 
 # ============================
 # Chapitre 3 : Classification non supervisée
 # ============================
 elif page == "Chapitre 3 : Classification non supervisée":
     st.title("Classification non supervisée")
-    clustering.show_clustering()  # doit charger les données automatiquement
+    clustering.show_clustering()
 
 # ============================
 # Chapitre 4 : Classification supervisée
 # ============================
 elif page == "Chapitre 4 : Classification supervisée":
     st.title("Classification supervisée")
-    classification.show_classification()  # doit charger les données automatiquement
+    classification.show_classification()
 
 # ============================
 # Déploiement du modèle
@@ -57,17 +55,12 @@ elif page == "Chapitre 4 : Classification supervisée":
 elif page == "Déploiement du modèle":
     st.title("Déploiement du modèle")
     st.markdown("""
-    La base de données de test est déjà intégrée, pas besoin d’uploader.  
+    La base de données de test est déjà intégrée.  
     Vous pouvez directement utiliser le modèle pour prédire sur de nouvelles données internes.
     """)
-    
-    # Exemple : chargement automatique de nouvelles données internes
     import pandas as pd
     try:
         df_test = pd.read_excel("data/Base_de_donnees_USAD_URGENCES1.xlsx", sheet_name=None)
         st.write("Aperçu des données intégrées :", {k: v.head() for k, v in df_test.items()})
-        # Ici tu peux appeler ta fonction de prédiction interne
-        # predictions = classification.predict(df_test)
-        # st.write(predictions)
     except Exception as e:
         st.error(f"Impossible de charger la base intégrée : {e}")
