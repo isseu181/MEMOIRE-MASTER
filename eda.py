@@ -3,12 +3,14 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
+import os
 
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 # ============================
 # Fonctions utilitaires
 # ============================
+
 def oui_non_vers_binaire(valeur):
     if isinstance(valeur, str) and valeur.strip().lower() in ["oui", "o"]:
         return 1
@@ -36,7 +38,7 @@ def binaire_vers_oui_non(valeur):
 def concat_dates_urgences(feuilles):
     """Concatène toutes les dates des urgences dans une seule série."""
     toutes_dates = pd.Series(dtype='datetime64[ns]')
-    for i in range(1, 7):
+    for i in range(1,7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
@@ -50,20 +52,29 @@ def concat_dates_urgences(feuilles):
 # ============================
 # Page Streamlit
 # ============================
+
 def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
 
-    # 🔹 File uploader
-    uploaded_file = st.file_uploader("Choisissez votre fichier Excel", type=["xlsx"])
-    if uploaded_file is None:
-        st.info("Veuillez uploader un fichier pour commencer l'analyse.")
-        return
+    # Chemin relatif vers le fichier Excel
+    file_path = os.path.join(os.path.dirname(__file__), "../Base_de_donnees_USAD_URGENCES1.xlsx")
 
     try:
-        feuilles = pd.read_excel(uploaded_file, sheet_name=None)  # toutes les feuilles
+        df = pd.read_excel(file_path)
         st.success("Fichier chargé avec succès !")
+        st.dataframe(df.head())
+    except FileNotFoundError:
+        st.error(f"Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
+        return
+    except ImportError:
+        st.error("Module 'openpyxl' manquant. Installez-le avec 'pip install openpyxl'.")
+        return
+
+    # Charger les feuilles nécessaires
+    try:
+        feuilles = pd.read_excel(file_path, sheet_name=None)
     except Exception as e:
-        st.error(f"Erreur lors du chargement du fichier : {e}")
+        st.error(f"Erreur lors de la lecture des feuilles Excel : {e}")
         return
 
     # ----------------------------
@@ -74,7 +85,6 @@ def show_eda():
         identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
         st.markdown("### 1️⃣ Identité des patients")
         st.write("Nombre total de patients:", len(identite))
-        st.dataframe(identite.head())
 
         # Sexe
         if 'Sexe' in identite.columns:
@@ -115,7 +125,6 @@ def show_eda():
         # Type de drépanocytose
         if 'Type de drépanocytose' in drepano.columns:
             type_counts = drepano['Type de drépanocytose'].value_counts().to_dict()
-            st.markdown("### 2️⃣ Type de drépanocytose et paramètres biologiques")
             st.write("Type de drépanocytose:", type_counts)
 
         # Âge début des signes
@@ -155,7 +164,7 @@ def show_eda():
     # 4️⃣ Consultations d'urgence
     # ----------------------------
     st.markdown("### 4️⃣ Consultations d'urgence")
-    for i in range(1, 7):
+    for i in range(1,7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
@@ -163,6 +172,7 @@ def show_eda():
             st.markdown(f"#### {nom}")
             st.write("Nombre de consultations:", len(df_urg))
 
+            # Symptômes suivis
             symptomes = ['Douleur', 'Fièvre', 'Pâleur', 'Ictère', 'Toux']
             for s in symptomes:
                 if s in df_urg.columns:
