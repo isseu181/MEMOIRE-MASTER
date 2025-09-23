@@ -48,7 +48,7 @@ def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
 
     # Chemin automatique du fichier Excel dans le même dossier que App.py
-    file_path = os.path.join(os.path.dirname(__file__), "../Base_de_données_USAD_URGENCES1.xlsx")
+    file_path = os.path.join(os.path.dirname(__file__), "../Base_de_donnees_USAD_URGENCES1.xlsx")
 
     if not os.path.exists(file_path):
         st.error(f"Fichier introuvable : {file_path}")
@@ -189,3 +189,4 @@ def show_eda():
         st.pyplot(fig)
     else:
         st.write("Aucune donnée de date disponible pour les urgences.")
+
