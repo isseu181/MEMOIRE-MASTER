@@ -1,6 +1,9 @@
 # app.py
 import streamlit as st
-from utils import eda, clustering, classification
+import eda
+import clustering
+import classification
+
 
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
