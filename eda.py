@@ -27,7 +27,7 @@ def convertir_df_oui_non(df, exclude_columns=None):
     return df
 
 def concat_dates_urgences(feuilles):
-    """Concatène toutes les dates des urgences dans une seule série."""
+    """Concatène toutes les dates des urgences dans une seule série, en excluant les lignes sans date."""
     toutes_dates = pd.Series(dtype='datetime64[ns]')
     for i in range(1, 7):
         nom = f'Urgence{i}'
@@ -49,7 +49,7 @@ def show_eda():
     try:
         feuilles = pd.read_excel(file_path, sheet_name=None)  # toutes les feuilles
         st.success("Fichier chargé avec succès !")
-        st.dataframe(next(iter(feuilles.values())).head())  # affiche un aperçu d'une feuille
+        st.dataframe(next(iter(feuilles.values())).head())  # aperçu d'une feuille
     except FileNotFoundError:
         st.error(f"Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
         return
@@ -86,7 +86,6 @@ def show_eda():
         if age_col in identite.columns:
             st.markdown("#### Âge à l’inclusion")
             fig, ax = plt.subplots(figsize=(8, 6))
-            # Conversion en numérique pour éviter les erreurs
             identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
             identite[age_col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
             ax.set_title("Répartition des âges à l’inclusion")
@@ -113,7 +112,6 @@ def show_eda():
         for col in bio_cols:
             if col in drepano.columns:
                 fig, ax = plt.subplots(figsize=(8, 4))
-                # conversion en numérique pour éviter TypeError
                 drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
                 drepano[col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
                 ax.set_title(col)
@@ -128,8 +126,14 @@ def show_eda():
         if nom in feuilles:
             df_urg = feuilles[nom]
             df_urg = convertir_df_oui_non(df_urg)
+            
+            # Filtrer uniquement les lignes avec date renseignée
+            date_cols = [c for c in df_urg.columns if 'date' in c.lower()]
+            if date_cols:
+                df_urg = df_urg[pd.notna(df_urg[date_cols[0]])]
+            
             st.markdown(f"#### {nom}")
-            st.write("Nombre de consultations:", len(df_urg))
+            st.write("Nombre de consultations avec date renseignée:", len(df_urg))
 
             # Symptômes suivis
             symptomes = ['Douleur', 'Fièvre', 'Pâleur', 'Ictère', 'Toux']
@@ -163,4 +167,3 @@ def show_eda():
         ax.set_xlabel("Mois")
         ax.set_title("Répartition mensuelle des urgences drépanocytaires")
         st.pyplot(fig)
-
