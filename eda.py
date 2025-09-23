@@ -52,16 +52,12 @@ def concat_dates_urgences(feuilles):
 # ============================
 def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
-
-    # Charger le fichier Excel
-    fichier = "data/Base_de_donnees_USAD_URGENCES1.xlsx"
     try:
-        feuilles = pd.read_excel(fichier, sheet_name=None)
-        st.success("Fichier Excel chargé avec succès ✅")
-    except Exception as e:
-        st.error(f"Erreur lors du chargement du fichier : {e}")
-        return
-
+    df = pd.read_excel("Base_de_donnees_USAD_URGENCES1.xlsx")  # fichier à la racine
+    st.success("Fichier chargé avec succès !")
+    st.dataframe(df.head())
+    except FileNotFoundError:
+    st.error("Fichier introuvable. Assurez-vous que 'Base_de_donnees_USAD_URGENCES1.xlsx' est à la racine du projet.")
     # ----------------------------
     # 1️⃣ Identité
     # ----------------------------
@@ -186,4 +182,5 @@ def show_eda():
         st.pyplot(fig)
     else:
         st.write("Aucune donnée de date disponible pour les urgences.")
+
 
