@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import warnings
-import os
 
 warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
@@ -30,7 +29,7 @@ def convertir_df_oui_non(df, exclude_columns=None):
 def concat_dates_urgences(feuilles):
     """Concatène toutes les dates des urgences dans une seule série."""
     toutes_dates = pd.Series(dtype='datetime64[ns]')
-    for i in range(1,7):
+    for i in range(1, 7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
@@ -46,27 +45,14 @@ def concat_dates_urgences(feuilles):
 # ============================
 def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
-
-    # Chemin automatique du fichier Excel dans le même dossier que App.py
-    file_path = os.path.join(os.path.dirname(__file__), "Base_de_donnees_USAD_URGENCES1.xlsx")
-
-    if not os.path.exists(file_path):
-        st.error(f"Fichier introuvable : {file_path}")
+    file_path = "Base_de_données_USAD_URGENCES1.xlsx"
+    try:
+        feuilles = pd.read_excel(file_path, sheet_name=None)  # toutes les feuilles
+        st.success("Fichier chargé avec succès !")
+        st.dataframe(next(iter(feuilles.values())).head())  # affiche un aperçu d'une feuille
+    except FileNotFoundError:
+        st.error(f"Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
         return
-
-    # Lecture de toutes les feuilles
-    feuilles = pd.read_excel(file_path, sheet_name=None)
-
-    st.success("Fichier chargé avec succès !")
-
-    # ----------------------------
-    # Feuilles à afficher
-    # ----------------------------
-    feuilles_utiles = ['Identite', 'Drépano', 'Antéccédents'] + [f'Urgence{i}' for i in range(1,7)]
-
-    for nom in feuilles_utiles:
-        if nom not in feuilles:
-            st.warning(f"Feuille manquante : {nom}")
 
     # ----------------------------
     # 1️⃣ Identité
@@ -81,7 +67,7 @@ def show_eda():
         if 'Sexe' in identite.columns:
             sexe_counts = identite['Sexe'].value_counts().to_dict()
             st.write("Répartition par sexe:", sexe_counts)
-            fig, ax = plt.subplots(figsize=(6,6))
+            fig, ax = plt.subplots(figsize=(6, 6))
             ax.pie(list(sexe_counts.values()), labels=list(sexe_counts.keys()), autopct="%1.1f%%", startangle=140)
             ax.set_title("Répartition par sexe")
             st.pyplot(fig)
@@ -90,7 +76,7 @@ def show_eda():
         if 'Origine Géographique' in identite.columns:
             origine_counts = identite['Origine Géographique'].value_counts().to_dict()
             st.write("Répartition par origine géographique:", origine_counts)
-            fig, ax = plt.subplots(figsize=(6,6))
+            fig, ax = plt.subplots(figsize=(6, 6))
             ax.pie(list(origine_counts.values()), labels=list(origine_counts.keys()), autopct="%1.1f%%", startangle=140)
             ax.set_title("Répartition par origine géographique")
             st.pyplot(fig)
@@ -99,7 +85,9 @@ def show_eda():
         age_col = "Âge du debut d etude en mois (en janvier 2023)"
         if age_col in identite.columns:
             st.markdown("#### Âge à l’inclusion")
-            fig, ax = plt.subplots(figsize=(8,6))
+            fig, ax = plt.subplots(figsize=(8, 6))
+            # Conversion en numérique pour éviter les erreurs
+            identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
             identite[age_col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
             ax.set_title("Répartition des âges à l’inclusion")
             ax.set_xlabel("Âge (mois)")
@@ -116,39 +104,26 @@ def show_eda():
         # Type de drépanocytose
         if 'Type de drépanocytose' in drepano.columns:
             type_counts = drepano['Type de drépanocytose'].value_counts().to_dict()
-            st.markdown("### 2️⃣ Type de drépanocytose")
-            st.write(type_counts)
+            st.markdown("### 2️⃣ Type de drépanocytose et paramètres biologiques")
+            st.write("Type de drépanocytose:", type_counts)
 
         # Paramètres biologiques
         bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C", "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
         st.markdown("#### Paramètres biologiques")
         for col in bio_cols:
             if col in drepano.columns:
-                fig, ax = plt.subplots(figsize=(8,4))
-                drepano[col].dropna().hist(bins=20, color="#36A2EB", edgecolor='white', ax=ax)
+                fig, ax = plt.subplots(figsize=(8, 4))
+                # conversion en numérique pour éviter TypeError
+                drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
+                drepano[col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
                 ax.set_title(col)
                 st.pyplot(fig)
-
-    # ----------------------------
-    # 3️⃣ Antécédents médicaux
-    # ----------------------------
-    if 'Antéccédents' in feuilles:
-        antecedents = feuilles['Antéccédents']
-        antecedents = convertir_df_oui_non(antecedents)
-        bin_cols = [col for col in antecedents.columns if set(antecedents[col].dropna().unique()).issubset({0,1})]
-        st.markdown("### 3️⃣ Antécédents médicaux")
-        for col in bin_cols:
-            counts = antecedents[col].value_counts().to_dict()
-            st.write(f"{col}: {counts}")
-            fig, ax = plt.subplots(figsize=(6,4))
-            ax.bar(counts.keys(), counts.values(), color="#36A2EB")
-            st.pyplot(fig)
 
     # ----------------------------
     # 4️⃣ Consultations d'urgence
     # ----------------------------
     st.markdown("### 4️⃣ Consultations d'urgence")
-    for i in range(1,7):
+    for i in range(1, 7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
@@ -156,6 +131,7 @@ def show_eda():
             st.markdown(f"#### {nom}")
             st.write("Nombre de consultations:", len(df_urg))
 
+            # Symptômes suivis
             symptomes = ['Douleur', 'Fièvre', 'Pâleur', 'Ictère', 'Toux']
             for s in symptomes:
                 if s in df_urg.columns:
@@ -181,13 +157,9 @@ def show_eda():
         repartition_df['Pourcentage (%)'] = (repartition_df['Nombre de consultations'] / repartition_df['Nombre de consultations'].sum() * 100).round(2)
         st.write(repartition_df)
 
-        fig, ax = plt.subplots(figsize=(10,5))
+        fig, ax = plt.subplots(figsize=(10, 5))
         repartition_df.set_index('Mois')['Nombre de consultations'].plot(kind='bar', color='#36A2EB', ax=ax)
         ax.set_ylabel("Nombre de consultations")
         ax.set_xlabel("Mois")
         ax.set_title("Répartition mensuelle des urgences drépanocytaires")
         st.pyplot(fig)
-    else:
-        st.write("Aucune donnée de date disponible pour les urgences.")
-
-
