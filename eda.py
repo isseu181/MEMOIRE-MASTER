@@ -10,7 +10,6 @@ warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 # ============================
 # Fonctions utilitaires
 # ============================
-
 def oui_non_vers_binaire(valeur):
     if isinstance(valeur, str) and valeur.strip().lower() in ["oui", "o"]:
         return 1
@@ -38,7 +37,7 @@ def binaire_vers_oui_non(valeur):
 def concat_dates_urgences(feuilles):
     """Concatène toutes les dates des urgences dans une seule série."""
     toutes_dates = pd.Series(dtype='datetime64[ns]')
-    for i in range(1,7):
+    for i in range(1, 7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
@@ -52,29 +51,21 @@ def concat_dates_urgences(feuilles):
 # ============================
 # Page Streamlit
 # ============================
-
 def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
-
-    # Chemin relatif vers le fichier Excel
-    file_path = os.path.join(os.path.dirname(__file__), "../Base_de_donnees_USAD_URGENCES1.xlsx")
-
-    try:
-        df = pd.read_excel(file_path)
-        st.success("Fichier chargé avec succès !")
-        st.dataframe(df.head())
-    except FileNotFoundError:
-        st.error(f"Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
-        return
-    except ImportError:
-        st.error("Module 'openpyxl' manquant. Installez-le avec 'pip install openpyxl'.")
-        return
-
-    # Charger les feuilles nécessaires
+    
+    # Chemin automatique du fichier Excel
+    file_path = os.path.join(os.path.dirname(__file__), "Base_de_donnees_USAD_URGENCES1.xlsx")
+    
     try:
         feuilles = pd.read_excel(file_path, sheet_name=None)
-    except Exception as e:
-        st.error(f"Erreur lors de la lecture des feuilles Excel : {e}")
+        st.success("Fichier chargé avec succès !")
+        # Affiche les premières lignes de chaque feuille
+        for nom_feuille, df in feuilles.items():
+            st.markdown(f"### Feuille : {nom_feuille}")
+            st.dataframe(df.head())
+    except FileNotFoundError:
+        st.error(f"Fichier introuvable : {file_path}")
         return
 
     # ----------------------------
@@ -122,12 +113,11 @@ def show_eda():
         drepano = feuilles['Drépano']
         drepano = convertir_df_oui_non(drepano)
 
-        # Type de drépanocytose
         if 'Type de drépanocytose' in drepano.columns:
             type_counts = drepano['Type de drépanocytose'].value_counts().to_dict()
+            st.markdown("### 2️⃣ Type de drépanocytose et paramètres biologiques")
             st.write("Type de drépanocytose:", type_counts)
 
-        # Âge début des signes
         age_signes_col = 'Âge de début des signes (en mois)'
         if age_signes_col in drepano.columns:
             st.write("Âge de début des signes (mois)")
@@ -135,7 +125,6 @@ def show_eda():
             drepano[age_signes_col].dropna().hist(bins=20, color='#FF6384', edgecolor='white', ax=ax)
             st.pyplot(fig)
 
-        # Paramètres biologiques
         bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C", "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
         st.markdown("#### Paramètres biologiques")
         for col in bio_cols:
@@ -164,15 +153,14 @@ def show_eda():
     # 4️⃣ Consultations d'urgence
     # ----------------------------
     st.markdown("### 4️⃣ Consultations d'urgence")
-    for i in range(1,7):
+    for i in range(1, 7):
         nom = f'Urgence{i}'
         if nom in feuilles:
             df_urg = feuilles[nom]
             df_urg = convertir_df_oui_non(df_urg)
             st.markdown(f"#### {nom}")
             st.write("Nombre de consultations:", len(df_urg))
-
-            # Symptômes suivis
+            
             symptomes = ['Douleur', 'Fièvre', 'Pâleur', 'Ictère', 'Toux']
             for s in symptomes:
                 if s in df_urg.columns:
@@ -190,7 +178,6 @@ def show_eda():
             1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
             7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'
         }
-
         repartition_df = pd.DataFrame({
             'Mois': [mois_noms[m] for m in repartition_mensuelle.index],
             'Nombre de consultations': repartition_mensuelle.values
