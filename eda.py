@@ -52,15 +52,18 @@ def concat_dates_urgences(feuilles):
 # ============================
 def show_eda():
     st.subheader("📊 Analyse exploratoire des données")
-    
-    # 🔹 Chargement du fichier avec gestion d'erreur
+
+    # 🔹 File uploader
+    uploaded_file = st.file_uploader("Choisissez votre fichier Excel", type=["xlsx"])
+    if uploaded_file is None:
+        st.info("Veuillez uploader un fichier pour commencer l'analyse.")
+        return
+
     try:
-        df = pd.read_excel("Base_de_donnees_USAD_URGENCES1.xlsx")  # fichier à la racine
+        feuilles = pd.read_excel(uploaded_file, sheet_name=None)  # toutes les feuilles
         st.success("Fichier chargé avec succès !")
-        st.dataframe(df.head())
-        feuilles = pd.read_excel("Base_de_donnees_USAD_URGENCES1.xlsx", sheet_name=None)  # toutes les feuilles
-    except FileNotFoundError:
-        st.error("Fichier introuvable. Assurez-vous que 'Base_de_donnees_USAD_URGENCES1.xlsx' est à la racine du projet.")
+    except Exception as e:
+        st.error(f"Erreur lors du chargement du fichier : {e}")
         return
 
     # ----------------------------
@@ -71,27 +74,30 @@ def show_eda():
         identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
         st.markdown("### 1️⃣ Identité des patients")
         st.write("Nombre total de patients:", len(identite))
+        st.dataframe(identite.head())
 
         # Sexe
-        sexe_counts = identite['Sexe'].value_counts().to_dict()
-        st.write("Répartition par sexe:", sexe_counts)
-        fig, ax = plt.subplots(figsize=(6,6))
-        ax.pie(list(sexe_counts.values()), labels=list(sexe_counts.keys()), autopct="%1.1f%%", startangle=140)
-        ax.set_title("Répartition par sexe")
-        st.pyplot(fig)
+        if 'Sexe' in identite.columns:
+            sexe_counts = identite['Sexe'].value_counts().to_dict()
+            st.write("Répartition par sexe:", sexe_counts)
+            fig, ax = plt.subplots(figsize=(6,6))
+            ax.pie(list(sexe_counts.values()), labels=list(sexe_counts.keys()), autopct="%1.1f%%", startangle=140)
+            ax.set_title("Répartition par sexe")
+            st.pyplot(fig)
 
         # Origine géographique
-        origine_counts = identite['Origine Géographique'].value_counts().to_dict()
-        st.write("Répartition par origine géographique:", origine_counts)
-        fig, ax = plt.subplots(figsize=(6,6))
-        ax.pie(list(origine_counts.values()), labels=list(origine_counts.keys()), autopct="%1.1f%%", startangle=140)
-        ax.set_title("Répartition par origine géographique")
-        st.pyplot(fig)
+        if 'Origine Géographique' in identite.columns:
+            origine_counts = identite['Origine Géographique'].value_counts().to_dict()
+            st.write("Répartition par origine géographique:", origine_counts)
+            fig, ax = plt.subplots(figsize=(6,6))
+            ax.pie(list(origine_counts.values()), labels=list(origine_counts.keys()), autopct="%1.1f%%", startangle=140)
+            ax.set_title("Répartition par origine géographique")
+            st.pyplot(fig)
 
         # Âge
-        st.markdown("#### Âge à l’inclusion")
         age_col = "Âge du debut d etude en mois (en janvier 2023)"
         if age_col in identite.columns:
+            st.markdown("#### Âge à l’inclusion")
             fig, ax = plt.subplots(figsize=(8,6))
             identite[age_col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
             ax.set_title("Répartition des âges à l’inclusion")
@@ -103,13 +109,13 @@ def show_eda():
     # 2️⃣ Drépanocytose
     # ----------------------------
     if 'Drépano' in feuilles:
-        st.markdown("### 2️⃣ Type de drépanocytose et paramètres biologiques")
         drepano = feuilles['Drépano']
         drepano = convertir_df_oui_non(drepano)
 
         # Type de drépanocytose
         if 'Type de drépanocytose' in drepano.columns:
             type_counts = drepano['Type de drépanocytose'].value_counts().to_dict()
+            st.markdown("### 2️⃣ Type de drépanocytose et paramètres biologiques")
             st.write("Type de drépanocytose:", type_counts)
 
         # Âge début des signes
@@ -134,10 +140,10 @@ def show_eda():
     # 3️⃣ Antécédents médicaux
     # ----------------------------
     if 'Antéccédents' in feuilles:
-        st.markdown("### 3️⃣ Antécédents médicaux")
         antecedents = feuilles['Antéccédents']
         antecedents = convertir_df_oui_non(antecedents)
         bin_cols = [col for col in antecedents.columns if set(antecedents[col].dropna().unique()).issubset({0,1})]
+        st.markdown("### 3️⃣ Antécédents médicaux")
         for col in bin_cols:
             counts = antecedents[col].value_counts().to_dict()
             st.write(f"{col}: {counts}")
@@ -157,7 +163,6 @@ def show_eda():
             st.markdown(f"#### {nom}")
             st.write("Nombre de consultations:", len(df_urg))
 
-            # Symptômes suivis
             symptomes = ['Douleur', 'Fièvre', 'Pâleur', 'Ictère', 'Toux']
             for s in symptomes:
                 if s in df_urg.columns:
