@@ -7,3 +7,4 @@ seaborn
 imblearn
 lightgbm
 joblib
+openpyxl
