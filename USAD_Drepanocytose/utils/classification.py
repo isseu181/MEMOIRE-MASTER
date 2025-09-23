@@ -9,9 +9,9 @@ def show_classification():
 
     # Charger modèle + scaler
     try:
-        model_loaded = joblib.load("fichiers modèles/scalers/random_forest_model.pkl")
-        scaler_loaded = joblib.load("fichiers modèles/scalers/scaler.pkl")
-        features_loaded = joblib.load("fichiers modèles/scalers/features.pkl")
+        model_loaded = joblib.load("fichiers modèles/random_forest_model.pkl")
+        scaler_loaded = joblib.load("fichiers modèles/scaler.pkl")
+        features_loaded = joblib.load("fichiers modèles/features.pkl")
         optimal_threshold = 0.56
         st.success("✅ Modèle et scaler chargés")
     except Exception as e:
@@ -83,3 +83,4 @@ def show_classification():
         st.success(f"✅ Évolution prédite : Favorable (probabilité de complications = {pred_proba[0]:.2f})")
     else:
         st.error(f"⚠️ Évolution prédite : Complications (probabilité = {pred_proba[0]:.2f})")
+
