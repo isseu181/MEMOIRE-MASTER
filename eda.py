@@ -45,7 +45,7 @@ def concat_dates_urgences(feuilles):
 # ============================
 def show_eda():
     st.title("📊 Analyse exploratoire des données")
-    file_path = "Base_de_données_USAD_URGENCES1.xlsx"
+    file_path = "Base_de_donnees_USAD_URGENCES1.xlsx"
 
     try:
         feuilles = pd.read_excel(file_path, sheet_name=None)
@@ -169,3 +169,4 @@ def show_eda():
         ax.set_xlabel("Mois")
         ax.set_title("Répartition mensuelle des urgences drépanocytaires")
         st.pyplot(fig)
+
