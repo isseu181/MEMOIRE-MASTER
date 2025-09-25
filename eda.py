@@ -49,9 +49,9 @@ def show_eda():
 
     try:
         feuilles = pd.read_excel(file_path, sheet_name=None)
-        st.success("Fichier chargé avec succès !")
+        st.success("✅ Fichier chargé avec succès !")
     except FileNotFoundError:
-        st.error(f"Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
+        st.error(f"❌ Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
         return
 
     # ============================
@@ -65,20 +65,20 @@ def show_eda():
 
         # Sexe
         if 'Sexe' in identite.columns:
-            sexe_counts = identite['Sexe'].value_counts().to_dict()
+            sexe_counts = identite['Sexe'].value_counts()
             fig, ax = plt.subplots(figsize=(6,6))
-            ax.pie(list(sexe_counts.values()), labels=list(sexe_counts.keys()),
-                   autopct="%1.1f%%", startangle=140)
-            ax.set_title("Répartition par sexe")
+            ax.pie(sexe_counts, labels=sexe_counts.index,
+                   autopct="%1.1f%%", startangle=140, colors=["#2E86C1","#F5B041"])
+            ax.set_title("Répartition par sexe", fontsize=14, fontweight="bold")
             st.pyplot(fig)
 
         # Origine géographique
         if 'Origine Géographique' in identite.columns:
-            origine_counts = identite['Origine Géographique'].value_counts().to_dict()
+            origine_counts = identite['Origine Géographique'].value_counts()
             fig, ax = plt.subplots(figsize=(6,6))
-            ax.pie(list(origine_counts.values()), labels=list(origine_counts.keys()),
-                   autopct="%1.1f%%", startangle=140)
-            ax.set_title("Répartition par origine géographique")
+            ax.pie(origine_counts, labels=origine_counts.index,
+                   autopct="%1.1f%%", startangle=140, colors=["#1ABC9C","#9B59B6","#E67E22","#95A5A6"])
+            ax.set_title("Répartition par origine géographique", fontsize=14, fontweight="bold")
             st.pyplot(fig)
 
         # Âge
@@ -86,8 +86,8 @@ def show_eda():
         if age_col in identite.columns:
             fig, ax = plt.subplots(figsize=(8,6))
             identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
-            identite[age_col].dropna().hist(bins=20, color="#36A2EB", edgecolor="white", ax=ax)
-            ax.set_title("Répartition des âges à l’inclusion")
+            identite[age_col].dropna().hist(bins=15, color="#2E86C1", edgecolor="white", ax=ax)
+            ax.set_title("Répartition des âges à l’inclusion", fontsize=14, fontweight="bold")
             ax.set_xlabel("Âge (mois)")
             ax.set_ylabel("Nombre de patients")
             st.pyplot(fig)
@@ -101,8 +101,8 @@ def show_eda():
 
         if 'Type de drépanocytose' in drepano.columns:
             st.header("2️⃣ Type de drépanocytose et paramètres biologiques")
-            type_counts = drepano['Type de drépanocytose'].value_counts().to_dict()
-            st.write("Type de drépanocytose:", type_counts)
+            type_counts = drepano['Type de drépanocytose'].value_counts()
+            st.table(type_counts)
 
         bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                     "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
@@ -111,8 +111,8 @@ def show_eda():
             if col in drepano.columns:
                 fig, ax = plt.subplots(figsize=(8,4))
                 drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
-                drepano[col].dropna().hist(bins=20, color="#FF6384", edgecolor="white", ax=ax)
-                ax.set_title(col)
+                drepano[col].dropna().hist(bins=15, color="#E74C3C", edgecolor="white", ax=ax)
+                ax.set_title(col, fontsize=12, fontweight="bold")
                 st.pyplot(fig)
 
     # ============================
@@ -134,16 +134,14 @@ def show_eda():
 
             st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
 
-            # Affiche les symptômes
+            # Affiche les symptômes (sous forme de tableau au lieu de graphiques)
+            data_symptomes = {}
             for s in symptomes:
                 if s in df_urg.columns and not df_urg[s].dropna().empty:
                     counts = df_urg[s].value_counts().to_dict()
-                    fig, ax = plt.subplots(figsize=(6,4))
-                    ax.bar(counts.keys(), counts.values(), color="#36A2EB")
-                    ax.set_title(f"{s} (patients présents)")
-                    ax.set_ylabel("Nombre de patients")
-                    ax.set_xlabel(s)
-                    st.pyplot(fig)
+                    data_symptomes[s] = counts
+            if data_symptomes:
+                st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
 
     # ============================
     # 5️⃣ Répartition mensuelle des urgences
@@ -161,12 +159,12 @@ def show_eda():
         })
         repartition_df['Pourcentage (%)'] = (repartition_df['Nombre de consultations'] /
                                             repartition_df['Nombre de consultations'].sum()*100).round(2)
-        st.write(repartition_df)
+        st.table(repartition_df)
 
         fig, ax = plt.subplots(figsize=(10,5))
-        repartition_df.set_index('Mois')['Nombre de consultations'].plot(kind='bar', color='#36A2EB', ax=ax)
+        repartition_df.set_index('Mois')['Nombre de consultations'].plot(
+            kind='bar', color='#2E86C1', ax=ax)
         ax.set_ylabel("Nombre de consultations")
         ax.set_xlabel("Mois")
-        ax.set_title("Répartition mensuelle des urgences drépanocytaires")
+        ax.set_title("Répartition mensuelle des urgences drépanocytaires", fontsize=14, fontweight="bold")
         st.pyplot(fig)
-
