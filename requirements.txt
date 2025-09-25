@@ -8,3 +8,5 @@ imblearn
 lightgbm
 joblib
 openpyxl
+plotly
+
