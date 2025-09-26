@@ -12,11 +12,10 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings('ignore')
 
 def show_clustering():
-    st.set_page_config(page_title="Segmentation Patients", layout="wide")
     st.title("Segmentation de Patients - KMeans Clustering")
 
     # ================================
-    # 1. Chargement automatique
+    # 1. Chargement automatique de la base
     # ================================
     st.info("Chargement automatique de la base de données : segmentation.xlsx")
     df = pd.read_excel("segmentation.xlsx")
@@ -88,23 +87,25 @@ def show_clustering():
     ]
     scaler = StandardScaler()
     df_scaled = df_selected.copy()
-    df_scaled[quantitative_vars] = scaler.fit_transform(df_scaled[quantitative_vars])
+    df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
     # ================================
-    # 5. KMeans Clustering
-    # ================================
-    n_clusters = 3  # choisi via graphe du coude
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    df["Cluster"] = kmeans.fit_predict(df_scaled)
-
-    # ================================
-    # 6. Tabs
+    # 5. Onglets horizontaux
     # ================================
     tabs = st.tabs(["Vue d'ensemble", "Visualisation ACP", "Profil détaillé"])
 
-    # --- Onglet 1 : Vue d’ensemble ---
+    # --- Onglet 1 : Vue d'ensemble ---
     with tabs[0]:
         st.subheader("Méthodologie et Graphe du coude")
+
+        st.markdown("""
+        ### Étapes méthodologiques utilisées :
+        1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.  
+        2. **Encodage** : transformation des variables qualitatives (binaire et catégorielle).  
+        3. **Standardisation** : mise à l’échelle des variables quantitatives en z-scores.  
+        4. **Clustering KMeans** : segmentation des patients en groupes homogènes.  
+        5. **Analyse en Composantes Principales (ACP)** : visualisation 2D des clusters.  
+        """)
 
         inertia = []
         K_range = range(1, 11)
@@ -120,11 +121,17 @@ def show_clustering():
         ax.set_title("Graphe du coude pour KMeans")
         st.pyplot(fig)
 
-    # --- Onglet 2 : ACP ---
+        n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        df['Cluster'] = kmeans.fit_predict(df_scaled)
+        df_scaled["Cluster"] = df["Cluster"]
+        st.success("✅ Clustering effectué !")
+
+    # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
         st.subheader("Visualisation des clusters via PCA 2D")
         pca = PCA(n_components=2)
-        components = pca.fit_transform(df_scaled)
+        components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
         df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
         df_pca['Cluster'] = df['Cluster']
 
@@ -142,15 +149,13 @@ def show_clustering():
         cluster_counts = df['Cluster'].value_counts().sort_index()
         st.dataframe(cluster_counts.rename("Nombre de patients"))
 
-        # DataFrame complet
+        # Données complètes avec attribution de cluster (seulement variables sélectionnées)
         st.write("### Données complètes avec attribution de cluster")
-        st.dataframe(df)
+        st.dataframe(df[variables_selected + ["Cluster"]])
 
         # Moyennes Z-scores par cluster
         st.write("### Moyennes standardisées (Z-scores) des variables par cluster :")
-        zscores_clusters = df_scaled.copy()
-        zscores_clusters["Cluster"] = df["Cluster"]
-        cluster_means = zscores_clusters.groupby("Cluster").mean().T
+        cluster_means = df_scaled.groupby("Cluster").mean().T
 
         # Ajout d'une colonne "Interprétation"
         interpretations = []
@@ -165,11 +170,3 @@ def show_clustering():
         cluster_means["Interprétation"] = interpretations
 
         st.dataframe(cluster_means)
-
-        # Histogrammes
-        st.write("### Distributions des variables par cluster :")
-        for var in quantitative_vars:
-            fig, ax = plt.subplots()
-            sns.histplot(data=df, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
-            ax.set_title(f"Distribution de {var} par cluster")
-            st.pyplot(fig)
