@@ -3,7 +3,8 @@ import streamlit as st
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -109,10 +110,12 @@ with tabs[0]:
         kmeans_test.fit(df_selected)
         inertia.append(kmeans_test.inertia_)
 
-    fig = px.line(x=list(K_range), y=inertia, markers=True,
-                  labels={'x':'Nombre de clusters (k)','y':'Inertia (SSE)'},
-                  title="Graphe du coude pour KMeans")
-    st.plotly_chart(fig)
+    fig, ax = plt.subplots()
+    ax.plot(list(K_range), inertia, marker='o')
+    ax.set_xlabel("Nombre de clusters (k)")
+    ax.set_ylabel("Inertia (SSE)")
+    ax.set_title("Graphe du coude pour KMeans")
+    st.pyplot(fig)
 
     n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
@@ -127,12 +130,10 @@ with tabs[1]:
     df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
     df_pca['Cluster'] = df['Cluster']
 
-    hover_cols = quantitative_vars + ['Cluster']
-    fig2 = px.scatter(df_pca, x='PC1', y='PC2', color='Cluster',
-                      title="Clusters visualisés sur les 2 premières composantes principales",
-                      color_discrete_sequence=px.colors.qualitative.Plotly,
-                      hover_data=hover_cols)
-    st.plotly_chart(fig2)
+    fig, ax = plt.subplots()
+    sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
+    ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
+    st.pyplot(fig)
 
 # --- Onglet 3 : Profil détaillé ---
 with tabs[2]:
@@ -140,10 +141,9 @@ with tabs[2]:
     st.write("Tableau complet des données avec cluster :")
     st.dataframe(df)
 
-    st.write("Histogrammes interactifs des variables quantitatives par cluster :")
+    st.write("Histogrammes des variables quantitatives par cluster :")
     for var in quantitative_vars:
-        fig = px.histogram(df, x=var, color='Cluster', barmode='overlay',
-                           title=f"Distribution de {var} par cluster",
-                           color_discrete_sequence=px.colors.qualitative.Plotly,
-                           marginal="box")
-        st.plotly_chart(fig)
+        fig, ax = plt.subplots()
+        sns.histplot(data=df, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
+        ax.set_title(f"Distribution de {var} par cluster")
+        st.pyplot(fig)
