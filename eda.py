@@ -166,67 +166,65 @@ def show_eda():
         fig.update_traces(textposition="outside")
         st.plotly_chart(fig, use_container_width=True)
 
-# ============================
-# 6️⃣ Analyse binaire (Evolution vs autres variables)
-# ============================
-st.header("6️⃣ Analyse binaire : Evolution vs autres variables")
+    # ============================
+    # 6️⃣ Analyse binaire (Evolution vs autres variables)
+    # ============================
+    st.header("6️⃣ Analyse binaire : Evolution vs autres variables")
 
-try:
-    df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
-    st.success("✅ Fichier 'fichier_nettoye.xlsx' chargé avec succès pour l'analyse binaire !")
+    try:
+        df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
+        st.success("✅ Fichier 'fichier_nettoye.xlsx' chargé avec succès pour l'analyse binaire !")
 
-    if "Evolution" in df_nettoye.columns:
-        cible = "Evolution"
+        if "Evolution" in df_nettoye.columns:
+            cible = "Evolution"
 
-        # Variables explicatives intéressantes (ajuste la liste selon ton fichier)
-        variables_interessantes = [
-            "Type de drépanocytose",
-            "Sexe",
-            "Âge du debut d etude en mois (en janvier 2023)",
-            "Origine Géographique",
-            "Taux d'Hb (g/dL)",
-            "% d'Hb F",
-            "% d'Hb S",
-            "% d'HB C",
-            "Nbre de GB (/mm3)",
-            "Nbre de PLT (/mm3)"
-        ]
+            # Variables explicatives intéressantes
+            variables_interessantes = [
+                "Type de drépanocytose",
+                "Sexe",
+                "Âge du debut d etude en mois (en janvier 2023)",
+                "Origine Géographique",
+                "Taux d'Hb (g/dL)",
+                "% d'Hb F",
+                "% d'Hb S",
+                "% d'HB C",
+                "Nbre de GB (/mm3)",
+                "Nbre de PLT (/mm3)"
+            ]
 
-        for var in variables_interessantes:
-            if var in df_nettoye.columns:
-                st.subheader(f"📌 {var} vs {cible}")
+            for var in variables_interessantes:
+                if var in df_nettoye.columns:
+                    st.subheader(f"📌 {var} vs {cible}")
 
-                # Cas 1 : variable catégorielle
-                if df_nettoye[var].dtype == "object":
-                    cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index") * 100
-                    st.write("Tableau croisé (%)")
-                    st.dataframe(cross_tab.round(2))
+                    # Cas 1 : variable catégorielle
+                    if df_nettoye[var].dtype == "object":
+                        cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index") * 100
+                        st.write("Tableau croisé (%)")
+                        st.dataframe(cross_tab.round(2))
 
-                    fig = px.bar(
-                        cross_tab,
-                        barmode="group",
-                        title=f"Répartition de {cible} selon {var}",
-                        text_auto=".2f",
-                        labels={"value": "Pourcentage (%)", "index": var, "Evolution": "Evolution"}
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                        fig = px.bar(
+                            cross_tab,
+                            barmode="group",
+                            title=f"Répartition de {cible} selon {var}",
+                            text_auto=".2f",
+                            labels={"value": "Pourcentage (%)", "index": var, "Evolution": "Evolution"}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
 
-                # Cas 2 : variable numérique
-                else:
-                    fig = px.box(
-                        df_nettoye,
-                        x=cible,
-                        y=var,
-                        points="all",
-                        title=f"Distribution de {var} selon {cible}",
-                        labels={var: var, "Evolution": "Evolution"}
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                    # Cas 2 : variable numérique
+                    else:
+                        fig = px.box(
+                            df_nettoye,
+                            x=cible,
+                            y=var,
+                            points="all",
+                            title=f"Distribution de {var} selon {cible}",
+                            labels={var: var, "Evolution": "Evolution"}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
 
-    else:
-        st.error("⚠️ La variable cible 'Evolution' est introuvable dans fichier_nettoye.xlsx.")
+        else:
+            st.error("⚠️ La variable cible 'Evolution' est introuvable dans fichier_nettoye.xlsx.")
 
-except FileNotFoundError:
-    st.warning("⚠️ Le fichier 'fichier_nettoye.xlsx' est introuvable. Place-le à la racine du projet.")
-
-
+    except FileNotFoundError:
+        st.warning("⚠️ Le fichier 'fichier_nettoye.xlsx' est introuvable. Place-le à la racine du projet.")
