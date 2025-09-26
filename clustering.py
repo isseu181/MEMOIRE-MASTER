@@ -16,7 +16,7 @@ def show_clustering():
     st.title("Segmentation de Patients - KMeans Clustering")
 
     # ================================
-    # Chargement automatique de la base
+    # Chargement automatique
     # ================================
     st.info("Chargement automatique de la base de données : segmentation.xlsx")
     df = pd.read_excel("segmentation.xlsx")
@@ -42,11 +42,10 @@ def show_clustering():
         "Prise en charge", "Prophylaxie à la pénicilline", "CVO", "Anémie", "AVC", 
         "STA", "Priapisme", "Infections", "Ictère", "Type de drépanocytose",
     ]
-
     df_selected = df[variables_selected].copy()
 
     # ================================
-    # Encodage des variables qualitatives
+    # Encodage qualitatif
     # ================================
     binary_mappings = {
         "Sexe": {"Masculin": 1, "Féminin": 0, "M": 1, "F": 0},
@@ -67,9 +66,7 @@ def show_clustering():
         "Ictère": {"OUI": 1, "NON": 0},
     }
     df_selected.replace(binary_mappings, inplace=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"], drop_first=False)
-    df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"], drop_first=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Type de drépanocytose"], drop_first=False)
+    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique","Prise en charge","Type de drépanocytose"], drop_first=True)
 
     # ================================
     # Standardisation
@@ -91,67 +88,67 @@ def show_clustering():
     df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
     # ================================
-    # Clustering et PCA calculés une seule fois
+    # Clustering
     # ================================
     n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     df['Cluster'] = kmeans.fit_predict(df_scaled)
 
+    # ================================
+    # PCA
+    # ================================
     pca = PCA(n_components=2)
-    components = pca.fit_transform(df_scaled)
-    df['PCA1'] = components[:,0]
-    df['PCA2'] = components[:,1]
+    df[['PCA1','PCA2']] = pca.fit_transform(df_scaled)
     explained_var = pca.explained_variance_ratio_
 
     # ================================
-    # Onglets horizontaux
+    # Onglets
     # ================================
     tabs = st.tabs(["Vue d'ensemble", "Visualisation ACP", "Profil détaillé"])
 
-    # --- Onglet 1 : Vue d'ensemble ---
+    # --- Vue d'ensemble ---
     with tabs[0]:
         st.subheader("Méthodologie et Graphe du coude")
-        st.write("""
-        - Préprocessing des données
-        - Encodage des variables qualitatives
-        - Standardisation des variables quantitatives
-        - Clustering KMeans
-        """)
         inertia = [KMeans(n_clusters=k, random_state=42).fit(df_scaled).inertia_ for k in range(1,11)]
         fig, ax = plt.subplots()
         ax.plot(range(1,11), inertia, marker='o')
         ax.set_xlabel("Nombre de clusters (k)")
         ax.set_ylabel("Inertia (SSE)")
-        ax.set_title("Graphe du coude pour KMeans")
+        ax.set_title("Graphe du coude KMeans")
         st.pyplot(fig)
 
-    # --- Onglet 2 : Visualisation ACP ---
+    # --- PCA ---
     with tabs[1]:
-        st.subheader("Visualisation des clusters via PCA 2D")
+        st.subheader("Visualisation ACP")
         fig, ax = plt.subplots()
         sns.scatterplot(data=df, x='PCA1', y='PCA2', hue='Cluster', palette='tab10', ax=ax)
-        ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
         st.pyplot(fig)
         st.write(f"Variance expliquée PCA1 : {explained_var[0]:.2%}, PCA2 : {explained_var[1]:.2%}")
 
-    # --- Onglet 3 : Profil détaillé ---
+    # --- Profil détaillé automatisé ---
     with tabs[2]:
-        st.subheader("Profil détaillé des clusters")
-        selected_clusters = st.multiselect(
-            "Sélectionnez les clusters à afficher",
-            options=sorted(df['Cluster'].unique()),
-            default=sorted(df['Cluster'].unique())
-        )
-        df_filtered = df[df['Cluster'].isin(selected_clusters)]
-        st.dataframe(df_filtered)
+        st.subheader("Profil détaillé par cluster")
+        cluster_summary = df.groupby('Cluster')[quantitative_vars].mean()
+        cluster_counts = df['Cluster'].value_counts().sort_index()
+        
+        for cluster in sorted(df['Cluster'].unique()):
+            st.markdown(f"### Cluster {cluster} - {cluster_counts[cluster]} patients")
+            st.markdown("**Caractéristiques Cliniques principales** :")
+            # Exemple automatique basé sur Hb et hospitalisations
+            hbF = cluster_summary.loc[cluster,"% d'Hb F"]
+            hbS = cluster_summary.loc[cluster,"% d'Hb S"]
+            hbC = cluster_summary.loc[cluster,"% d'HB C"]
+            hosp = cluster_summary.loc[cluster,"Nbre d'hospitalisations entre 2017 et 2023"]
+            transf = cluster_summary.loc[cluster,"Nbre de transfusion Entre 2017 et 2023"]
 
-        st.write("Histogrammes des variables quantitatives par cluster filtré :")
-        for var in quantitative_vars:
-            fig, ax = plt.subplots()
-            sns.histplot(data=df_filtered, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
-            ax.set_title(f"Distribution de {var} par cluster")
-            st.pyplot(fig)
+            st.markdown(f"- Hb F : {hbF:.3f}")
+            st.markdown(f"- Hb S : {hbS:.3f}")
+            st.markdown(f"- Hb C : {hbC:.3f}")
+            st.markdown(f"- Hospitalisations récentes : {hosp:.3f}")
+            st.markdown(f"- Transfusions récentes : {transf:.3f}")
+            st.markdown("---")
 
-        st.write("Résumé des clusters filtrés :")
-        cluster_summary = df_filtered.groupby('Cluster')[quantitative_vars].mean()
-        st.dataframe(cluster_summary)
+        st.markdown("**Implications cliniques (automatisées)** :")
+        st.markdown("- Cluster faible : suivi standard")
+        st.markdown("- Cluster modéré : interventions préventives ciblées")
+        st.markdown("- Cluster sévère : prise en charge intensive")
