@@ -1,4 +1,4 @@
-# utils/eda.py
+# eda.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -149,7 +149,7 @@ def show_eda():
                 st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
 
     # ============================
-    # 5️⃣ Répartition mensuelle des urgences
+    # 5️⃣ Répartition mensuelle des urgences (en courbe)
     # ============================
     st.header("5️⃣ Répartition mensuelle des urgences")
     toutes_dates = concat_dates_urgences(feuilles)
@@ -164,13 +164,11 @@ def show_eda():
         })
         repartition_df['Pourcentage (%)'] = (repartition_df['Nombre de consultations'] /
                                             repartition_df['Nombre de consultations'].sum()*100).round(2)
-        st.table(repartition_df)
 
-        fig = px.bar(repartition_df, x='Mois', y='Nombre de consultations',
-                     title="Répartition mensuelle des urgences drépanocytaires",
-                     text='Nombre de consultations',
-                     color_discrete_sequence=["#2E86C1"])
-        fig.update_traces(textposition="outside")
+        # Courbe
+        fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
+                      title="Évolution mensuelle des urgences drépanocytaires",
+                      markers=True)
         st.plotly_chart(fig, use_container_width=True)
 
     # ============================
