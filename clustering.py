@@ -124,7 +124,7 @@ def show_clustering():
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['Cluster'] = kmeans.fit_predict(df_scaled)
         df_scaled["Cluster"] = df["Cluster"]
-        st.success("✅ Clustering effectué !")
+        st.success("Clustering effectué !")
 
     # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
@@ -141,7 +141,7 @@ def show_clustering():
         st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
 
         fig, ax = plt.subplots()
-        sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
+        sns.scatterplot(data=df_pca, x='Première Composante (PC1)', y='Deuxième Composante(PC2)', hue='Cluster', palette='tab10', ax=ax)
         ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
         st.pyplot(fig)
 
@@ -164,7 +164,7 @@ def show_clustering():
         if cols_to_show:
             st.dataframe(df[cols_to_show + ["Cluster"]])
         else:
-            st.warning("⚠️ Veuillez sélectionner au moins une variable à afficher.")
+            st.warning("Veuillez sélectionner au moins une variable à afficher.")
 
         # Moyennes Z-scores par cluster
         st.write("### Moyennes standardisées (Z-scores) des variables par cluster :")
@@ -181,3 +181,4 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
+
