@@ -97,7 +97,6 @@ def show_clustering():
     # --- Onglet 1 : Vue d'ensemble ---
     with tabs[0]:
         st.subheader("Méthodologie et Graphe du coude")
-
         st.markdown("""
         ### Étapes méthodologiques utilisées :
         1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.  
@@ -135,6 +134,12 @@ def show_clustering():
         df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
         df_pca['Cluster'] = df['Cluster']
 
+        # Variance expliquée
+        explained_var = pca.explained_variance_ratio_
+        st.write(f"**Variance expliquée par PC1 :** {explained_var[0]:.2%}")
+        st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
+        st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
+
         fig, ax = plt.subplots()
         sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
         ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
@@ -149,15 +154,22 @@ def show_clustering():
         cluster_counts = df['Cluster'].value_counts().sort_index()
         st.dataframe(cluster_counts.rename("Nombre de patients"))
 
-        # Données complètes avec attribution de cluster (seulement variables sélectionnées)
+        # Données complètes avec attribution de cluster (variables sélectionnées par utilisateur)
         st.write("### Données complètes avec attribution de cluster")
-        st.dataframe(df[variables_selected + ["Cluster"]])
+        cols_to_show = st.multiselect(
+            "Sélectionnez les variables à afficher :",
+            options=variables_selected,
+            default=quantitative_vars[:3]  # par défaut, afficher les 3 premières variables quantitatives
+        )
+        if cols_to_show:
+            st.dataframe(df[cols_to_show + ["Cluster"]])
+        else:
+            st.warning("⚠️ Veuillez sélectionner au moins une variable à afficher.")
 
         # Moyennes Z-scores par cluster
         st.write("### Moyennes standardisées (Z-scores) des variables par cluster :")
         cluster_means = df_scaled.groupby("Cluster").mean().T
 
-        # Ajout d'une colonne "Interprétation"
         interpretations = []
         for var, row in cluster_means.iterrows():
             max_cluster = row.idxmax()
@@ -168,5 +180,4 @@ def show_clustering():
                 interp = f"Plus élevé dans Cluster {max_cluster}, plus bas dans Cluster {min_cluster}"
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
-
         st.dataframe(cluster_means)
