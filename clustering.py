@@ -101,7 +101,7 @@ with tabs[0]:
     - Standardisation des variables quantitatives
     - Clustering KMeans
     """)
-    
+
     # Graphe du coude
     inertia = []
     K_range = range(1, 11)
@@ -109,7 +109,7 @@ with tabs[0]:
         kmeans_test = KMeans(n_clusters=k, random_state=42)
         kmeans_test.fit(df_selected)
         inertia.append(kmeans_test.inertia_)
-    
+
     fig = px.line(x=list(K_range), y=inertia, markers=True,
                   labels={'x':'Nombre de clusters (k)','y':'Inertia (SSE)'},
                   title="Graphe du coude pour KMeans")
@@ -129,10 +129,13 @@ with tabs[1]:
     df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
     df_pca['Cluster'] = df['Cluster']
 
+    # Utilisation de hover_data uniquement sur les colonnes quantitatives + Cluster
+    hover_cols = quantitative_vars + ['Cluster']
+
     fig2 = px.scatter(df_pca, x='PC1', y='PC2', color='Cluster',
                       title="Clusters visualisés sur les 2 premières composantes principales",
-                      color_continuous_scale=px.colors.qualitative.Plotly,
-                      hover_data=df.columns)
+                      color_discrete_sequence=px.colors.qualitative.Plotly,
+                      hover_data=hover_cols)
     st.plotly_chart(fig2)
 
 # --- Onglet 3 : Profil détaillé ---
