@@ -12,6 +12,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
+import warnings 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings('ignore')
@@ -207,3 +208,4 @@ def show_classification():
         pred_prob = rf_model.predict_proba(input_df)[:,1][0]
         pred_class = "Complications" if pred_prob>=results["Random Forest"]["optimal_threshold"] else "Favorable"
         st.write(f"Prédiction : {pred_class} (Probabilité : {pred_prob:.3f})")
+
