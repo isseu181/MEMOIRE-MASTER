@@ -13,8 +13,6 @@ rf_model = joblib.load("random_forest_model.pkl")
 scaler = joblib.load("scaler.pkl")
 features = joblib.load("features.pkl")
 
-# Charger les résultats des modèles depuis Excel
-results_df = pd.read_excel("model_results.xlsx")
 
 # ================================
 # Préparation des données pour la prédiction
@@ -77,3 +75,4 @@ def show_classification():
         st.pyplot(plt)
 
         st.write(f"Accuracy : {best_model_row['Accuracy']:.3f}, Precision : {best_model_row['Precision']:.3f}, Recall : {best_model_row['Recall']:.3f}, F1-Score : {best_model_row['F1-Score']:.3f}, Seuil optimal : {optimal_threshold:.3f}")
+
