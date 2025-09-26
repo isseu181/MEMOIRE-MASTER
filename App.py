@@ -4,8 +4,6 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-from sklearn.model_selection import train_test_split
-from imblearn.combine import SMOTETomek
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, roc_curve, classification_report
 import matplotlib.pyplot as plt
@@ -14,35 +12,32 @@ import joblib
 import warnings
 
 # ==============================================================================
-# CONFIGURATION ET NETTOYAGE
+# CONFIGURATION, CONSTANTES ET PRÉPARATION
 # ==============================================================================
 warnings.filterwarnings('ignore')
 st.set_page_config(
-    page_title="Analyse Drépanocytose - Segmentation & Prédiction",
+    page_title="Projet Drépanocytose",
     layout="wide"
 )
 
-# --- Fichiers d'entrée (Doivent être présents dans le dépôt) ---
+# --- Chemins des fichiers ---
 CLUSTER_DATA_PATH = "segmentation.xlsx"
-PREDICT_DATA_PATH = "fichier_nettoye.xlsx"
-
-# --- Chemins des modèles sauvegardés (Doivent être créés AVANT le déploiement) ---
+PREDICT_DATA_PATH = "fichier_nettoye.xlsx" 
 MODEL_PATH = "random_forest_model.pkl"
 SCALER_PATH = "scaler.pkl"
 FEATURES_PATH = "features.pkl"
 
-# --- Constantes pour la prédiction (doivent correspondre à vos résultats) ---
-# **REMPLACER CES VALEURS par les résultats de votre script d'entraînement (step 11/13)**
+# --- Constantes pour la Prédiction (AJUSTER AVEC VOS VRAIS RÉSULTATS) ---
 BEST_MODEL_NAME = "Random Forest"
 BEST_THRESHOLD = 0.56 # Remplacer par votre seuil optimal
 SUMMARY_DF_RAW = {
     "Modèle": ["Random Forest", "LightGBM", "Decision Tree", "SVM"],
-    "AUC-ROC": [0.965, 0.958, 0.880, 0.945], # Exemple : REMPLACER PAR VOS VRAIES VALEURS
-    "Seuil optimal": [0.450, 0.520, 0.500, 0.510] # Exemple : REMPLACER PAR VOS VRAIES VALEURS
+    "AUC-ROC": [0.965, 0.958, 0.880, 0.945], # REMPLACER PAR VOS VRAIES VALEURS D'AUC
+    "Seuil optimal": [0.450, 0.520, 0.500, 0.510] # REMPLACER PAR VOS VRAIES VALEURS DE SEUIL
 }
 summary_df = pd.DataFrame(SUMMARY_DF_RAW).sort_values(by="AUC-ROC", ascending=False).reset_index(drop=True)
 
-# --- Variables quantitatives pour Standardisation (doivent être les mêmes dans les deux parties) ---
+# --- Variables quantitatives (pour la prédiction/standardisation) ---
 QUANTITATIVE_VARS_PREDICT = [
     'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
     'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
@@ -54,10 +49,10 @@ QUANTITATIVE_VARS_PREDICT = [
 ]
 
 # ==============================================================================
-# FONCTIONS CACHÉES (CLUSTERING)
+# FONCTIONS CACHÉES ET CHARGEMENT
 # ==============================================================================
 
-@st.cache_data(show_spinner="Nettoyage des données et calcul du clustering...")
+@st.cache_data(show_spinner="Nettoyage et calcul du clustering...")
 def preparer_et_calculer_coude(chemin_fichier):
     # --- 1. Chargement et Sélection ---
     try:
@@ -82,7 +77,7 @@ def preparer_et_calculer_coude(chemin_fichier):
     
     df_selected = df[variables_selected].fillna(0).copy() 
     
-    # --- 2. Encodage (Identique à votre script de clustering) ---
+    # --- 2. Encodage ---
     binary_mappings = {
         "Sexe": {"Masculin": 1, "Féminin": 0, "M": 1, "F": 0}, "Parents Salariés": {"OUI": 1, "NON": 0},
         "PEV Complet": {"OUI": 1, "NON": 0}, "Vaccin contre pneumocoque": {"OUI": 1, "NON": 0},
@@ -93,9 +88,7 @@ def preparer_et_calculer_coude(chemin_fichier):
         "Priapisme": {"OUI": 1, "NON": 0}, "Infections": {"OUI": 1, "NON": 0}, "Ictère": {"OUI": 1, "NON": 0},
     }
     df_selected.replace(binary_mappings, inplace=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"], drop_first=False)
-    df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"], drop_first=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Type de drépanocytose"], drop_first=False)
+    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique", "Prise en charge", "Type de drépanocytose"], drop_first=False)
 
     # --- 3. Standardisation ---
     quantitative_vars = [
@@ -107,7 +100,7 @@ def preparer_et_calculer_coude(chemin_fichier):
     ]
     scaler = StandardScaler()
     df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars].fillna(0))
-    df_final = df_selected.dropna(axis=1) # Supprime les colonnes totalement NaN après OHE/clean
+    df_final = df_selected.dropna(axis=1)
     
     if df_final.empty or df_final.shape[1] == 0:
         return None, None, None, "Le DataFrame final est vide après le prétraitement."
@@ -130,10 +123,6 @@ def preparer_et_calculer_coude(chemin_fichier):
     
     return df_final, fig_coude, df, None
 
-# ==============================================================================
-# FONCTIONS CACHÉES (PRÉDICTION)
-# ==============================================================================
-
 @st.cache_resource
 def load_predictive_resources():
     """Charge le meilleur modèle, le scaler et les features pour la prédiction."""
@@ -150,7 +139,7 @@ def load_predictive_resources():
 model_loaded, scaler_loaded, features_loaded = load_predictive_resources()
 
 def prepare_and_predict(input_data):
-    """Prépare les données et retourne la probabilité/classe."""
+    """Prépare les données brutes pour la prédiction et retourne le résultat."""
     new_data = pd.DataFrame([input_data])
     
     # 1. Ajouter les colonnes manquantes (OHE) et s'assurer du bon ordre
@@ -176,60 +165,78 @@ def prepare_and_predict(input_data):
     return pred_proba, pred_class
 
 # ==============================================================================
-# INTERFACE UTILISATEUR STREAMLIT
+# DÉFINITION DES PAGES
 # ==============================================================================
 
-st.title("Projet Data Science : Drépanocytose")
-st.markdown("Analyse de Segmentation et Modèle Prédictif du Risque de Complications")
+# --- Page 1 : Vue d'Ensemble & Données ---
+def page_vue_ensemble():
+    st.header("🏠 Vue d'Ensemble : Projet Drépanocytose")
 
-tab_cluster, tab_predict_eval, tab_predict_interface = st.tabs([
-    "📊 Segmentation K-Means", 
-    "📈 Évaluation du Modèle", 
-    "🧪 Interface de Prédiction"
-])
+    col_intro, col_objectifs = st.columns(2)
 
-# --------------------------------------------------------------------------
-# ONGLET 1 : CLUSTERING
-# --------------------------------------------------------------------------
-with tab_cluster:
-    st.header("Analyse de Segmentation (Clustering K-Means)")
+    with col_intro:
+        st.subheader("Contexte")
+        st.markdown("""
+        Ce projet de Data Science vise à analyser les données de patients atteints de **drépanocytose** afin de dégager des informations exploitables pour la prise en charge.
+
+        L'application est divisée en deux grandes parties : **Segmentation (Clustering)** pour identifier les profils de patients, et **Prédiction (Machine Learning)** pour estimer le risque de complications.
+        """)
+    
+    with col_objectifs:
+        st.subheader("Objectifs Clés")
+        st.markdown("""
+        - **Stratification du Risque :** Mieux cibler les patients nécessitant une surveillance accrue.
+        - **Optimisation des Protocoles :** Fournir des bases factuelles pour l'adaptation des traitements.
+        - **Aide à la Décision :** Offrir un outil de prédiction interactif simple d'utilisation.
+        """)
+
+    st.markdown("---")
+    
+    # Aperçu rapide des données
+    try:
+        df_raw_preview = pd.read_excel(CLUSTER_DATA_PATH).head(5)
+        st.subheader("Aperçu des Données Brutes")
+        st.dataframe(df_raw_preview, use_container_width=True)
+        st.caption(f"Source : {CLUSTER_DATA_PATH} (Affichage des 5 premières lignes)")
+    except Exception:
+        st.warning("Impossible de charger le fichier de données brutes pour l'aperçu. Vérifiez le chemin.")
+
+# --- Page 2 : Clustering K-Means ---
+def page_clustering():
+    st.header("📊 Analyse de Segmentation (Clustering K-Means)")
+    
     df_final, fig_coude, df_original, error_msg = preparer_et_calculer_coude(CLUSTER_DATA_PATH)
     
     if error_msg:
         st.error(error_msg)
     elif df_final is None:
-        st.warning("Vérifiez la structure de votre fichier 'segmentation.xlsx'.")
+        st.warning("Vérifiez la structure de votre fichier de données pour le clustering.")
     else:
         st.subheader("Étape 1 : Détermination du Nombre Optimal de Clusters (K)")
         col_coude, col_k_choice = st.columns([2, 1])
 
         with col_coude:
             st.pyplot(fig_coude)
-            st.caption("Le 'coude' suggère le nombre optimal de clusters.")
-
         with col_k_choice:
             K_optimal = st.slider("Choisissez le nombre de clusters (K) :", min_value=2, max_value=10, value=3, step=1)
             st.info(f"Modèle entraîné avec **K = {K_optimal}** clusters.")
 
+        st.subheader(f"Étape 2 : Profils des {K_optimal} Clusters")
+        
         # Exécution de K-Means final
         kmeans = KMeans(n_clusters=K_optimal, random_state=42, n_init=10)
         clusters = kmeans.fit_predict(df_final)
-
         df_clusters = df_original.copy()
         df_clusters['Cluster'] = clusters
-
-        st.subheader(f"Étape 2 : Profils des {K_optimal} Clusters")
         
-        # Calcul des métriques clés par cluster pour l'interprétation
         df_summary = df_clusters.groupby('Cluster').agg({
             'Âge du debut d etude en mois (en janvier 2023)': 'mean',
             "Taux d'Hb (g/dL)": 'mean',
             "Nbre d'hospitalisations entre 2017 et 2023": 'mean',
-            "L'hydroxyurée": 'mean', # Proportion de Oui
-            "Sexe": 'mean' # Proportion de Masculin
+            "L'hydroxyurée": 'mean',
+            "Sexe": 'mean'
         })
         df_summary['Taille'] = df_clusters['Cluster'].value_counts().sort_index()
-
         st.dataframe(df_summary.rename(columns={"L'hydroxyurée": "Prop. Hydroxyurée (1=Oui)", "Sexe": "Prop. Masculin (1=M)"}), use_container_width=True)
 
         st.subheader("Étape 3 : Visualisation des Clusters (PCA)")
@@ -246,14 +253,12 @@ with tab_cluster:
         ax_pca.legend(*scatter.legend_elements(), title="Clusters")
         st.pyplot(fig_pca)
 
-# --------------------------------------------------------------------------
-# ONGLET 2 : ÉVALUATION DU MODÈLE
-# --------------------------------------------------------------------------
-with tab_predict_eval:
-    st.header("Évaluation des Modèles de Prédiction (Évolution = Complications)")
+# --- Page 3 : Évaluation des Modèles ---
+def page_evaluation():
+    st.header("📈 Évaluation des Modèles de Prédiction")
     
     if model_loaded is None:
-        st.error("Les fichiers du modèle (Random Forest) n'ont pas été trouvés. Veuillez exécuter le script d'entraînement une fois pour générer les fichiers `.pkl`.")
+        st.error("Les fichiers du modèle (Random Forest, scaler, features) n'ont pas été trouvés. Veuillez générer les fichiers `.pkl`.")
     else:
         st.subheader("Tableau de Synthèse des Performances")
         st.dataframe(
@@ -268,11 +273,9 @@ with tab_predict_eval:
         ax_auc.set_ylim(0,1)
         st.pyplot(fig_auc)
 
-# --------------------------------------------------------------------------
-# ONGLET 3 : PRÉDICTION INTERACTIVE
-# --------------------------------------------------------------------------
-with tab_predict_interface:
-    st.header("Simulateur de Risque de Complications")
+# --- Page 4 : Interface de Prédiction ---
+def page_prediction():
+    st.header("🧪 Simulateur de Risque de Complications")
     
     if model_loaded is None:
         st.warning("Impossible d'effectuer des prédictions sans les fichiers du modèle.")
@@ -280,9 +283,8 @@ with tab_predict_interface:
         st.markdown(f"**Modèle utilisé : {BEST_MODEL_NAME}** (Seuil optimal : **{BEST_THRESHOLD:.3f}**)")
         st.info("Entrez les données du patient pour obtenir une estimation du risque d'évolution vers des complications.")
 
-        # --- Saisie des données ---
+        # --- Saisie des données (Interface) ---
         input_data = {}
-        
         st.subheader("Paramètres Clés du Patient")
         col1, col2, col3 = st.columns(3)
         
@@ -297,13 +299,12 @@ with tab_predict_interface:
             input_data['Pâleur'] = st.selectbox("Pâleur (Oui=1/Non=0)", options=[1, 0], format_func=lambda x: 'Oui' if x == 1 else 'Non')
             
         with col3:
-            # Saisie de la catégorie de diagnostic (pour l'OHE)
+            # Encodage du Diagnostic
             diag_cat = st.selectbox("Diagnostic Catégorisé", options=['Autres', 'CVO', 'Infections', 'AVC', 'STA', 'Anémie'])
-            # Création des colonnes OHE nécessaires
             for cat in ['CVO', 'Infections', 'AVC', 'STA', 'Anémie']:
                 input_data[f'Diagnostic Catégorisé_{cat}'] = 1 if diag_cat == cat else 0
 
-            # Saisie d'un mois (pour l'OHE)
+            # Encodage du Mois
             mois_input = st.selectbox("Mois de l'Urgence (1=Janvier...)", options=list(range(1, 13)))
             for m in range(2, 13):
                 input_data[f'Mois_{m}'] = 1 if mois_input == m else 0
@@ -314,10 +315,10 @@ with tab_predict_interface:
         
         if st.button("Évaluer le Risque", type="primary"):
             
-            # --- Ajout des variables non demandées (avec valeur par défaut 0) ---
+            # Préparation des données pour la prédiction (ajout des features manquantes à 0)
             final_input_data = {}
             for feature in features_loaded:
-                # Priorité aux valeurs saisies par l'utilisateur
+                # Utiliser la valeur saisie si elle existe, sinon 0 (défaut)
                 if feature in input_data and not isinstance(input_data[feature], str):
                     final_input_data[feature] = input_data[feature]
                 elif feature.startswith('Diagnostic Catégorisé_') and feature in input_data:
@@ -325,7 +326,6 @@ with tab_predict_interface:
                 elif feature.startswith('Mois_') and feature in input_data:
                      final_input_data[feature] = input_data[feature]
                 else:
-                    # Défaut pour les variables binaires/quantitatives non saisies
                     final_input_data[feature] = 0
 
             prob, classe = prepare_and_predict(final_input_data)
@@ -345,3 +345,29 @@ with tab_predict_interface:
                 with col_res3:
                     st.metric(label="Seuil de Décision", value=f"{BEST_THRESHOLD:.3f}")
 
+# ==============================================================================
+# LOGIQUE PRINCIPALE DE L'APPLICATION (BARRE LATÉRALE)
+# ==============================================================================
+
+st.title("Projet Data Science : Drépanocytose")
+st.markdown("Analyse de Segmentation et Modèle Prédictif du Risque de Complications")
+st.markdown("---")
+
+# Navigation dans la barre latérale
+st.sidebar.title("Navigation")
+page = st.sidebar.selectbox("Choisissez l'analyse :", [
+    "🏠 Vue d'Ensemble & Data",
+    "📊 Segmentation K-Means",
+    "📈 Évaluation du Modèle",
+    "🧪 Interface de Prédiction"
+])
+
+# Affichage de la page sélectionnée
+if page == "🏠 Vue d'Ensemble & Data":
+    page_vue_ensemble()
+elif page == "📊 Segmentation K-Means":
+    page_clustering()
+elif page == "📈 Évaluation du Modèle":
+    page_evaluation()
+elif page == "🧪 Interface de Prédiction":
+    page_prediction()
