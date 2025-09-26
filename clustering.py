@@ -149,3 +149,34 @@ def show_clustering():
             sns.histplot(data=df, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
             ax.set_title(f"Distribution de {var} par cluster")
             st.pyplot(fig)
+
+    # ================================
+    # Résumé des clusters
+    # ================================
+    cluster_summary = df.groupby('Cluster')[quantitative_vars].mean()
+    st.write("Résumé des clusters (moyennes) :")
+    st.dataframe(cluster_summary)
+
+    # ================================
+    # PCA et visualisation finale
+    # ================================
+    pca = PCA(n_components=2)
+    components = pca.fit_transform(df_selected)
+    df['PCA1'] = components[:, 0]
+    df['PCA2'] = components[:, 1]
+
+    explained_var = pca.explained_variance_ratio_
+    st.write(f"Variance expliquée par PCA1 : {explained_var[0]:.2%}")
+    st.write(f"Variance expliquée par PCA2 : {explained_var[1]:.2%}")
+    st.write(f"Variance totale expliquée : {(explained_var[0]+explained_var[1]):.2%}")
+
+    fig, ax = plt.subplots(figsize=(8,6))
+    for c in df['Cluster'].unique():
+        subset = df[df['Cluster'] == c]
+        ax.scatter(subset['PCA1'], subset['PCA2'], label=f'Cluster {c}', alpha=0.6)
+    ax.set_xlabel(f'PCA1 ({explained_var[0]*100:.1f}%)')
+    ax.set_ylabel(f'PCA2 ({explained_var[1]*100:.1f}%)')
+    ax.set_title('Visualisation des clusters KMeans sur PCA')
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
