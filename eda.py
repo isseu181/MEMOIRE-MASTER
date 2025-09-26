@@ -1,126 +1,201 @@
-# App.py
+# eda.py
 import streamlit as st
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
 import plotly.express as px
+import warnings
 
-# Importer ton module eda.py
-import eda
-
-st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
+warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 # ============================
-# Barre latérale de navigation
+# Fonctions utilitaires
 # ============================
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Aller à :", [
-    "Chapitre 1 : Cadre théorique",
-    "Chapitre 2 : Analyse exploratoire",
-    "Chapitre 3 : Classification non supervisée",
-    "Chapitre 4 : Classification supervisée",
-    "Déploiement du modèle"
-])
+def oui_non_vers_binaire(valeur):
+    if isinstance(valeur, str) and valeur.strip().lower() in ["oui","o"]:
+        return 1
+    elif isinstance(valeur, str) and valeur.strip().lower() in ["non","n"]:
+        return 0
+    return valeur
+
+def convertir_df_oui_non(df, exclude_columns=None):
+    df = df.copy()
+    exclude_columns = exclude_columns or []
+    for col in df.columns:
+        if col not in exclude_columns and df[col].isin(
+            ["Oui","Non","OUI","NON","oui","non","O","N"]
+        ).any():
+            df[col] = df[col].apply(oui_non_vers_binaire)
+    return df
+
+def concat_dates_urgences(feuilles):
+    """Concatène toutes les dates des urgences dans une seule série."""
+    toutes_dates = pd.Series(dtype='datetime64[ns]')
+    for i in range(1,7):
+        nom = f'Urgence{i}'
+        if nom in feuilles:
+            df_urg = feuilles[nom]
+            col_date_candidates = [col for col in df_urg.columns if 'date' in col.lower()]
+            if col_date_candidates:
+                col_date = col_date_candidates[0]
+                dates = pd.to_datetime(df_urg[col_date], errors='coerce').dropna()
+                toutes_dates = pd.concat([toutes_dates, dates])
+    return toutes_dates
 
 # ============================
-# Chapitre 1 : Cadre théorique
+# Page Streamlit
 # ============================
-if page == "Chapitre 1 : Cadre théorique":
-    st.title("Cadre théorique et conceptuel")
-    st.markdown("""
-    - Présentation de l’USAD  
-    - Généralités sur la drépanocytose  
-    - Principes de l’intelligence artificielle appliquée à la santé
-    """)
+def show_eda():
+    st.title("📊 Analyse exploratoire des données")
+    file_path = "Base_de_donnees_USAD_URGENCES1.xlsx"
 
-# ============================
-# Chapitre 2 : Analyse exploratoire
-# ============================
-elif page == "Chapitre 2 : Analyse exploratoire":
-    eda.show_eda()
-
-# ============================
-# Chapitre 3 : Classification non supervisée
-# ============================
-elif page == "Chapitre 3 : Classification non supervisée":
-    st.title("Classification non supervisée (Clustering)")
-
-    # Charger les données
     try:
-        df = pd.read_excel("segmentation.xlsx").applymap(lambda x: x.strip() if isinstance(x,str) else x)
+        feuilles = pd.read_excel(file_path, sheet_name=None)
+        st.success("✅ Fichier chargé avec succès !")
     except FileNotFoundError:
-        st.error("Fichier 'segmentation.xlsx' introuvable.")
-        st.stop()
+        st.error(f"❌ Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
+        return
 
-    variables = ["Âge du debut d etude en mois (en janvier 2023)",
-                 "Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-    df_selected = df[variables].copy()
-    scaler = StandardScaler()
-    df_selected[variables] = scaler.fit_transform(df_selected)
+    # ============================
+    # 1️⃣ Identité
+    # ============================
+    if 'Identite' in feuilles:
+        identite = feuilles['Identite']
+        identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
+        st.header("1️⃣ Identité des patients")
+        st.write("Nombre total de patients:", len(identite))
 
-    # Méthode du coude
-    inertia = [KMeans(n_clusters=k, random_state=42).fit(df_selected).inertia_ for k in range(1,11)]
-    fig_coude = px.line(x=list(range(1,11)), y=inertia, markers=True, labels={"x":"k","y":"Inertia"}, title="Méthode du coude")
-    st.plotly_chart(fig_coude, use_container_width=True)
+        # Sexe
+        if 'Sexe' in identite.columns:
+            sexe_counts = identite['Sexe'].value_counts()
+            fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
+                         title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    k_optimal = st.slider("Choisir le nombre de clusters", 2, 10, 3)
-    df_selected["Cluster"] = KMeans(n_clusters=k_optimal, random_state=42).fit_predict(df_selected)
+        # Origine géographique
+        if 'Origine Géographique' in identite.columns:
+            origine_counts = identite['Origine Géographique'].value_counts()
+            fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
+                         title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Résumé clusters")
-    st.dataframe(df_selected.groupby("Cluster")[variables].agg(["mean","median","max"]).round(2))
+        # Scolarité (camembert)
+        if "Niveau d'instruction scolarité" in identite.columns:
+            scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
+            fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
+                         title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    # PCA interactive
-    pca = PCA(n_components=2)
-    components = pca.fit_transform(df_selected[variables])
-    df_selected["PCA1"] = components[:,0]
-    df_selected["PCA2"] = components[:,1]
-    fig_pca = px.scatter(df_selected, x="PCA1", y="PCA2", color="Cluster", hover_data=variables,
-                         title="Visualisation PCA des clusters", color_continuous_scale=px.colors.qualitative.Bold)
-    st.plotly_chart(fig_pca, use_container_width=True)
+        # Âge
+        age_col = "Âge du debut d etude en mois (en janvier 2023)"
+        if age_col in identite.columns:
+            identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
+            fig = px.histogram(identite, x=age_col, nbins=15,
+                               title="Répartition des âges à l’inclusion",
+                               color_discrete_sequence=["#2E86C1"])
+            fig.update_traces(texttemplate="%{y}", textposition="outside")
+            st.plotly_chart(fig, use_container_width=True)
 
-# ============================
-# Chapitre 4 : Classification supervisée
-# ============================
-elif page == "Chapitre 4 : Classification supervisée":
-    st.title("Classification supervisée (Analyse binaire)")
+    # ============================
+    # 2️⃣ Drépanocytose
+    # ============================
+    if 'Drépano' in feuilles:
+        drepano = feuilles['Drépano']
+        drepano = convertir_df_oui_non(drepano)
 
+        if 'Type de drépanocytose' in drepano.columns:
+            st.header("2️⃣ Type de drépanocytose et paramètres biologiques")
+            type_counts = drepano['Type de drépanocytose'].value_counts()
+            st.table(type_counts)
+
+        bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
+                    "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+
+        st.subheader("📌 Paramètres biologiques (statistiques descriptives)")
+        stats_data = {}
+        for col in bio_cols:
+            if col in drepano.columns:
+                drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
+                stats_data[col] = {
+                    "Moyenne": drepano[col].mean(),
+                    "Médiane": drepano[col].median(),
+                    "Min": drepano[col].min(),
+                    "Max": drepano[col].max()
+                }
+
+        if stats_data:
+            stats_df = pd.DataFrame(stats_data).T.round(2)
+            st.table(stats_df)
+
+    # ============================
+    # 4️⃣ Consultations d'urgence
+    # ============================
+    st.header("4️⃣ Consultations d'urgence")
+    symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
+
+    for i in range(1,7):
+        nom = f'Urgence{i}'
+        if nom in feuilles:
+            df_urg = feuilles[nom]
+            df_urg = convertir_df_oui_non(df_urg)
+
+            date_col_candidates = [c for c in df_urg.columns if "date" in c.lower()]
+            if date_col_candidates:
+                df_urg = df_urg[df_urg[date_col_candidates[0]].notna()]
+
+            st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
+
+            data_symptomes = {}
+            for s in symptomes:
+                if s in df_urg.columns and not df_urg[s].dropna().empty:
+                    counts = df_urg[s].value_counts().to_dict()
+                    data_symptomes[s] = counts
+            if data_symptomes:
+                st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
+
+    # ============================
+    # 5️⃣ Répartition mensuelle des urgences (courbe)
+    # ============================
+    st.header("5️⃣ Répartition mensuelle des urgences")
+    toutes_dates = concat_dates_urgences(feuilles)
+    if not toutes_dates.empty:
+        repartition_mensuelle = toutes_dates.dt.month.value_counts().sort_index()
+        mois_noms = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',
+                     7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'}
+
+        repartition_df = pd.DataFrame({
+            'Mois':[mois_noms[m] for m in repartition_mensuelle.index],
+            'Nombre de consultations': repartition_mensuelle.values
+        })
+        fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
+                      title="Répartition mensuelle des urgences drépanocytaires",
+                      markers=True)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ============================
+    # 6️⃣ Analyse binaire : Evolution vs variables
+    # ============================
+    st.header("6️⃣ Analyse binaire : Evolution vs autres variables")
     try:
         df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
+        cible = "Evolution"
+        if cible in df_nettoye.columns:
+            variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
+                         "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
+
+            for var in variables:
+                if var in df_nettoye.columns:
+                    st.subheader(f"{var} vs {cible}")
+
+                    if df_nettoye[var].dtype=="object":
+                        cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
+                        st.dataframe(cross_tab.round(2))
+                        fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
+                                     title=f"{var} vs {cible}")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
+                        st.table(stats_group)
     except FileNotFoundError:
-        st.error("Fichier 'fichier_nettoye.xlsx' introuvable.")
-        st.stop()
-
-    cible = "Evolution"
-    if cible in df_nettoye.columns:
-        variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
-                     "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
-        for var in variables:
-            if var in df_nettoye.columns:
-                st.subheader(f"{var} vs {cible}")
-
-                if df_nettoye[var].dtype=="object":
-                    cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
-                    st.dataframe(cross_tab.round(2))
-                    fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
-                                 title=f"{var} vs {cible}")
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
-                    st.table(stats_group)
-
-# ============================
-# Déploiement du modèle
-# ============================
-elif page == "Déploiement du modèle":
-    st.title("Déploiement du modèle")
-    st.markdown("""
-    La base de données de test est déjà intégrée.  
-    Vous pouvez directement utiliser le modèle pour prédire sur de nouvelles données internes.
-    """)
-    try:
-        df_test = pd.read_excel("Base_de_donnees_USAD_URGENCES1.xlsx", sheet_name=None)
-        st.write("Aperçu des données intégrées :", {k: v.head() for k, v in df_test.items()})
-    except Exception as e:
-        st.error(f"Impossible de charger la base intégrée : {e}")
+        st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
