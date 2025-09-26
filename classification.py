@@ -190,6 +190,47 @@ def show_classification():
         """)
 
     # --- Onglet 4 : Simulateur ---
-    with tabs[3]:
-        st.subheader("Simulateur - Prédiction pour un nouveau patient")
-        st.write("⚠️ À compléter selon les variables d'entrée souhaitées")
+with tabs[3]:
+    st.subheader("Simulateur - Prédiction pour un nouveau patient")
+
+    st.write(" Remplissez les informations du patient :")
+
+    # Création d'un dictionnaire pour récupérer les inputs
+    user_input = {}
+
+    # Variables quantitatives
+    for var in quantitative_vars:
+        min_val = float(df_selected[var].min())
+        max_val = float(df_selected[var].max())
+        mean_val = float(df_selected[var].mean())
+        user_input[var] = st.number_input(f"{var}", value=mean_val, min_value=min_val, max_value=max_val)
+
+    # Variables binaires
+    binary_vars = [col for col in df_selected.columns if df_selected[col].nunique()==2 and col not in quantitative_vars and col not in ["Evolution_Cible"]]
+    for var in binary_vars:
+        user_input[var] = st.selectbox(f"{var}", options=[0,1], index=1)
+
+    # Dummy variables (Diagnostic Catégorisé, Mois)
+    dummy_vars = [col for col in X_train.columns if col not in quantitative_vars + binary_vars]
+    for var in dummy_vars:
+        user_input[var] = st.selectbox(f"{var}", options=[0,1], index=0)
+
+    if st.button("Prédire l'évolution"):
+        # Convertir en DataFrame
+        input_df = pd.DataFrame([user_input])
+
+        # Standardisation des variables quantitatives
+        input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
+
+        # Prédiction
+        proba = best_model.predict_proba(input_df)[:,1][0]
+        pred = best_model.predict(input_df)[0]
+
+        st.write(f"### Résultat de la prédiction :")
+        if pred==0:
+            st.success(f"Évolution prévue : Favorable")
+        else:
+            st.error(f"Évolution prévue : Complications")
+        st.info(f"Probabilité d'évolution vers complication : {proba:.2f}")
+
+
