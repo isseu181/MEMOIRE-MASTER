@@ -102,7 +102,6 @@ with tabs[0]:
     - Clustering KMeans
     """)
 
-    # Graphe du coude
     inertia = []
     K_range = range(1, 11)
     for k in K_range:
@@ -115,7 +114,6 @@ with tabs[0]:
                   title="Graphe du coude pour KMeans")
     st.plotly_chart(fig)
 
-    # Choix du nombre de clusters
     n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
     kmeans = KMeans(n_clusters=n_clusters, random_state=42)
     df['Cluster'] = kmeans.fit_predict(df_selected)
@@ -129,9 +127,7 @@ with tabs[1]:
     df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
     df_pca['Cluster'] = df['Cluster']
 
-    # Utilisation de hover_data uniquement sur les colonnes quantitatives + Cluster
     hover_cols = quantitative_vars + ['Cluster']
-
     fig2 = px.scatter(df_pca, x='PC1', y='PC2', color='Cluster',
                       title="Clusters visualisés sur les 2 premières composantes principales",
                       color_discrete_sequence=px.colors.qualitative.Plotly,
@@ -141,6 +137,13 @@ with tabs[1]:
 # --- Onglet 3 : Profil détaillé ---
 with tabs[2]:
     st.subheader("Profil détaillé des clusters")
+    st.write("Tableau complet des données avec cluster :")
     st.dataframe(df)
-    st.write("Statistiques par cluster :")
-    st.dataframe(df.groupby('Cluster').mean())
+
+    st.write("Histogrammes interactifs des variables quantitatives par cluster :")
+    for var in quantitative_vars:
+        fig = px.histogram(df, x=var, color='Cluster', barmode='overlay',
+                           title=f"Distribution de {var} par cluster",
+                           color_discrete_sequence=px.colors.qualitative.Plotly,
+                           marginal="box")
+        st.plotly_chart(fig)
