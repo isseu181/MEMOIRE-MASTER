@@ -66,7 +66,6 @@ def show_clustering():
         "Infections": {"OUI": 1, "NON": 0},
         "Ictère": {"OUI": 1, "NON": 0},
     }
-
     df_selected.replace(binary_mappings, inplace=True)
     df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"], drop_first=False)
     df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"], drop_first=True)
@@ -88,7 +87,21 @@ def show_clustering():
         "HDJ"
     ]
     scaler = StandardScaler()
-    df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
+    df_scaled = df_selected.copy()
+    df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
+
+    # ================================
+    # Clustering et PCA calculés une seule fois
+    # ================================
+    n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    df['Cluster'] = kmeans.fit_predict(df_scaled)
+
+    pca = PCA(n_components=2)
+    components = pca.fit_transform(df_scaled)
+    df['PCA1'] = components[:,0]
+    df['PCA2'] = components[:,1]
+    explained_var = pca.explained_variance_ratio_
 
     # ================================
     # Onglets horizontaux
@@ -104,79 +117,41 @@ def show_clustering():
         - Standardisation des variables quantitatives
         - Clustering KMeans
         """)
-
-        inertia = []
-        K_range = range(1, 11)
-        for k in K_range:
-            kmeans_test = KMeans(n_clusters=k, random_state=42)
-            kmeans_test.fit(df_selected)
-            inertia.append(kmeans_test.inertia_)
-
+        inertia = [KMeans(n_clusters=k, random_state=42).fit(df_scaled).inertia_ for k in range(1,11)]
         fig, ax = plt.subplots()
-        ax.plot(list(K_range), inertia, marker='o')
+        ax.plot(range(1,11), inertia, marker='o')
         ax.set_xlabel("Nombre de clusters (k)")
         ax.set_ylabel("Inertia (SSE)")
         ax.set_title("Graphe du coude pour KMeans")
         st.pyplot(fig)
 
-        n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        df['Cluster'] = kmeans.fit_predict(df_selected)
-        st.success("✅ Clustering effectué !")
-
     # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
         st.subheader("Visualisation des clusters via PCA 2D")
-        pca = PCA(n_components=2)
-        components = pca.fit_transform(df_selected)
-        df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
-        df_pca['Cluster'] = df['Cluster']
-
         fig, ax = plt.subplots()
-        sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
+        sns.scatterplot(data=df, x='PCA1', y='PCA2', hue='Cluster', palette='tab10', ax=ax)
         ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
         st.pyplot(fig)
+        st.write(f"Variance expliquée PCA1 : {explained_var[0]:.2%}, PCA2 : {explained_var[1]:.2%}")
 
     # --- Onglet 3 : Profil détaillé ---
     with tabs[2]:
         st.subheader("Profil détaillé des clusters")
-        st.write("Tableau complet des données avec cluster :")
-        st.dataframe(df)
+        selected_clusters = st.multiselect(
+            "Sélectionnez les clusters à afficher",
+            options=sorted(df['Cluster'].unique()),
+            default=sorted(df['Cluster'].unique())
+        )
+        df_filtered = df[df['Cluster'].isin(selected_clusters)]
+        st.dataframe(df_filtered)
 
-        st.write("Histogrammes des variables quantitatives par cluster :")
+        st.write("Histogrammes des variables quantitatives par cluster filtré :")
         for var in quantitative_vars:
             fig, ax = plt.subplots()
-            sns.histplot(data=df, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
+            sns.histplot(data=df_filtered, x=var, hue='Cluster', multiple='stack', palette='tab10', ax=ax)
             ax.set_title(f"Distribution de {var} par cluster")
             st.pyplot(fig)
 
-    # ================================
-    # Résumé des clusters
-    # ================================
-    cluster_summary = df.groupby('Cluster')[quantitative_vars].mean()
-    st.write("Résumé des clusters (moyennes) :")
-    st.dataframe(cluster_summary)
-
-    # ================================
-    # PCA et visualisation finale
-    # ================================
-    pca = PCA(n_components=2)
-    components = pca.fit_transform(df_selected)
-    df['PCA1'] = components[:, 0]
-    df['PCA2'] = components[:, 1]
-
-    explained_var = pca.explained_variance_ratio_
-    st.write(f"Variance expliquée par PCA1 : {explained_var[0]:.2%}")
-    st.write(f"Variance expliquée par PCA2 : {explained_var[1]:.2%}")
-    st.write(f"Variance totale expliquée : {(explained_var[0]+explained_var[1]):.2%}")
-
-    fig, ax = plt.subplots(figsize=(8,6))
-    for c in df['Cluster'].unique():
-        subset = df[df['Cluster'] == c]
-        ax.scatter(subset['PCA1'], subset['PCA2'], label=f'Cluster {c}', alpha=0.6)
-    ax.set_xlabel(f'PCA1 ({explained_var[0]*100:.1f}%)')
-    ax.set_ylabel(f'PCA2 ({explained_var[1]*100:.1f}%)')
-    ax.set_title('Visualisation des clusters KMeans sur PCA')
-    ax.legend()
-    ax.grid(True)
-    st.pyplot(fig)
+        st.write("Résumé des clusters filtrés :")
+        cluster_summary = df_filtered.groupby('Cluster')[quantitative_vars].mean()
+        st.dataframe(cluster_summary)
