@@ -1,147 +1,219 @@
-import streamlit as st
+# classification.py
 import pandas as pd
+import numpy as np
+import streamlit as st
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
+from imblearn.combine import SMOTETomek
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+import lightgbm as lgb
+import matplotlib.pyplot as plt
+import seaborn as sns
 import joblib
 
+st.set_page_config(page_title="Classification Patients", layout="wide")
+
 # ================================
-# Fonction principale
+# 1. Chargement des données
 # ================================
-def show_classification():
-    st.subheader("🧠 Prédiction de l'évolution (Favorable vs Complications)")
+st.title("Classification des Patients - Évolution")
 
-    # Charger modèle, scaler et features
-    try:
-        model_loaded = joblib.load("fichiers modèles/random_forest_model.pkl")
-        scaler_loaded = joblib.load("fichiers modèles/scaler.pkl")
-        features_loaded = joblib.load("fichiers modèles/features.pkl")
-    except Exception as e:
-        st.error(f"❌ Impossible de charger le modèle ou les fichiers nécessaires : {e}")
-        return
+df = pd.read_excel("fichier_nettoye.xlsx")
 
-    # ================================
-    # Menus déroulants pour Oui/Non
-    # ================================
-    def oui_non(label):
-        return st.selectbox(label, ["OUI", "NON"])
+# ================================
+# 2. Variables sélectionnées
+# ================================
+variables_selection = [
+    'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+    "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+    'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+    'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+    "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+    'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+    'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+    'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+    'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+    "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+    'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+    'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+]
+df_selected = df[variables_selection].copy()
 
-    paleur = oui_non("Pâleur")
-    souffle = oui_non("Souffle systolique fonctionnel")
-    vaccin_meningo = oui_non("Vaccin contre méningocoque")
-    spleno = oui_non("Splénomégalie")
-    penicilline = oui_non("Prophylaxie à la pénicilline")
-    parents = oui_non("Parents Salariés")
-    hospit = oui_non("Prise en charge Hospitalisation")
-    radio = oui_non("Radiographie du thorax Oui ou Non")
-    douleur = oui_non("Douleur provoquée (Os.Abdomen)")
-    vaccin_pneumo = oui_non("Vaccin contre pneumocoque")
-    hdj = oui_non("HDJ")
+# ================================
+# 3. Encodage
+# ================================
+binary_mappings = {
+    'Pâleur': {'OUI':1, 'NON':0},
+    'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
+    'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
+    'Splénomégalie': {'OUI':1, 'NON':0},
+    'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
+    'Parents Salariés': {'OUI':1, 'NON':0},
+    'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
+    'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
+    'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
+    'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+}
+df_selected.replace(binary_mappings, inplace=True)
 
-    # ================================
-    # Niveau d’urgence et scolarité
-    # ================================
-    urgence = st.selectbox("🚨 Niveau d’urgence", ["Urgence1", "Urgence2", "Urgence3", "Urgence4", "Urgence5", "Urgence6"])
-    scolarite = st.selectbox(
-        "🎓 Niveau d'instruction scolarité",
-        ["NON", "Maternelle", "Elémentaire", "Secondaire", "Enseignement Supérieur"]
-    )
+ordinal_mappings = {
+    'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
+    "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
+}
+df_selected.replace(ordinal_mappings, inplace=True)
 
-    # ================================
-    # Mois consultation
-    # ================================
-    mois_dict = {
-        "Janvier": 1, "Février": 2, "Mars": 3, "Avril": 4,
-        "Mai": 5, "Juin": 6, "Juillet": 7, "Août": 8,
-        "Septembre": 9, "Octobre": 10, "Novembre": 11, "Décembre": 12
-    }
-    mois_choisi = st.selectbox("📅 Mois consultation", list(mois_dict.keys()))
+df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
 
-    # ================================
-    # Champs numériques principaux
-    # ================================
-    age_signes = st.number_input("Âge de début des signes (en mois)", min_value=0, value=12)
-    age_etude = st.number_input("Âge du début d'étude (en mois)", min_value=0, value=24)
-    age_decouverte = st.number_input("Âge de découverte de la drépanocytose (en mois)", min_value=0, value=6)
+# ================================
+# 4. Standardisation
+# ================================
+quantitative_vars = [
+    'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
+    'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
+    'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
+    'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
+    "Nbre d'hospitalisations entre 2017 et 2023",
+    'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
+    'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
+]
+scaler = StandardScaler()
+df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
-    gr = st.number_input("GR (/mm3)", min_value=0.0, value=4.5)
-    gb = st.number_input("GB (/mm3)", min_value=0.0, value=7.2)
-    plt = st.number_input("PLT (/mm3)", min_value=0.0, value=300.0)
-    hb = st.number_input("HB (g/dl)", min_value=0.0, value=10.0)
-    vgm = st.number_input("VGM (fl/u3)", min_value=0.0, value=85.0)
-    tcmh = st.number_input("TCMH (g/dl)", min_value=0.0, value=30.0)
-    taux_hb = st.number_input("Taux d'Hb (g/dL)", min_value=0.0, value=10.0)
+# ================================
+# 5. Variable cible
+# ================================
+df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+X = df_selected.drop(['Evolution','Evolution_Cible'], axis=1)
+y = df_selected['Evolution_Cible']
 
-    crp = st.number_input("CRP Si positive (Valeur)", min_value=0.0, value=5.0)
-    hb_s = st.number_input("% d'Hb S", min_value=0.0, value=90.0)
-    hb_f = st.number_input("% d'Hb F", min_value=0.0, value=10.0)
+# ================================
+# 6. SMOTETomek
+# ================================
+smt = SMOTETomek(random_state=42)
+X_res, y_res = smt.fit_resample(X, y)
 
-    hospit_avant2017 = st.number_input("Nbre d'hospitalisations avant 2017", min_value=0, value=1)
-    hospit_apres2017 = st.number_input("Nbre d'hospitalisations entre 2017 et 2023", min_value=0, value=0)
-    transfusion_avant2017 = st.number_input("Nbre de transfusion avant 2017", min_value=0, value=0)
-    transfusion_apres2017 = st.number_input("Nbre de transfusion entre 2017 et 2023", min_value=0, value=0)
+# ================================
+# 7. Division train/val/test
+# ================================
+X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
 
-    # ================================
-    # Construction du DataFrame
-    # ================================
-    if st.button("⚡ Lancer la prédiction"):
-        new_data = pd.DataFrame([{
-            "Âge de début des signes (en mois)": age_signes,
-            "Âge du debut d etude en mois (en janvier 2023)": age_etude,
-            "Âge de découverte de la drépanocytose (en mois)": age_decouverte,
-            "GR (/mm3)": gr,
-            "GB (/mm3)": gb,
-            "PLT (/mm3)": plt,
-            "HB (g/dl)": hb,
-            "VGM (fl/u3)": vgm,
-            "TCMH (g/dl)": tcmh,
-            "Taux d'Hb (g/dL)": taux_hb,
-            "CRP Si positive (Valeur)": crp,
-            "% d'Hb S": hb_s,
-            "% d'Hb F": hb_f,
-            "Nbre d'hospitalisations avant 2017": hospit_avant2017,
-            "Nbre d'hospitalisations entre 2017 et 2023": hospit_apres2017,
-            "Nbre de transfusion avant 2017": transfusion_avant2017,
-            "Nbre de transfusion Entre 2017 et 2023": transfusion_apres2017,
-            "Pâleur": 1 if paleur=="OUI" else 0,
-            "Souffle systolique fonctionnel": 1 if souffle=="OUI" else 0,
-            "Vaccin contre méningocoque": 1 if vaccin_meningo=="OUI" else 0,
-            "Splénomégalie": 1 if spleno=="OUI" else 0,
-            "Prophylaxie à la pénicilline": 1 if penicilline=="OUI" else 0,
-            "Parents Salariés": 1 if parents=="OUI" else 0,
-            "Prise en charge Hospitalisation": 1 if hospit=="OUI" else 0,
-            "Radiographie du thorax Oui ou Non": 1 if radio=="OUI" else 0,
-            "Douleur provoquée (Os.Abdomen)": 1 if douleur=="OUI" else 0,
-            "Vaccin contre pneumocoque": 1 if vaccin_pneumo=="OUI" else 0,
-            "HDJ": 1 if hdj=="OUI" else 0,
-            "NiveauUrgence": int(urgence.replace("Urgence","")),
-            "Niveau d'instruction scolarité": {
-                "NON":0, "Maternelle":1, "Elémentaire":2,
-                "Secondaire":3, "Enseignement Supérieur":4
-            }[scolarite],
-            "Mois": mois_dict[mois_choisi]
-        }])
+# ================================
+# 8. Modèles
+# ================================
+models = {
+    "Decision Tree": DecisionTreeClassifier(random_state=42),
+    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+    "SVM": SVC(probability=True, random_state=42),
+    "LightGBM": lgb.LGBMClassifier(objective='binary', learning_rate=0.05, num_leaves=31, n_estimators=500, random_state=42)
+}
 
-        # Réalignement avec les features d’entraînement
-        new_data = new_data.reindex(columns=features_loaded, fill_value=0)
+results = {}
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_val_proba = model.predict_proba(X_val)[:,1]
+    fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
+    optimal_threshold = thresholds[np.argmax(tpr - fpr)]
+    y_test_proba = model.predict_proba(X_test)[:,1]
+    y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
+    cm = confusion_matrix(y_test, y_test_pred)
+    auc_score = roc_auc_score(y_test, y_test_proba)
+    results[name] = {"model": model, "y_test_pred": y_test_pred, "y_test_proba": y_test_proba, "cm": cm, "auc": auc_score, "threshold": optimal_threshold}
 
-        # Standardisation des variables quantitatives
-        quantitative_vars = [
-            'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
-            'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
-            'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
-            'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
-            "Nbre d'hospitalisations entre 2017 et 2023",
-            'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
-            'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
-        ]
-        try:
-            new_data[quantitative_vars] = scaler_loaded.transform(new_data[quantitative_vars])
-        except Exception as e:
-            st.warning(f"⚠️ Attention : certaines variables quantitatives n'ont pas été trouvées ({e})")
+# ================================
+# Onglets Streamlit
+# ================================
+tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
-        # Prédiction
-        pred_proba = model_loaded.predict_proba(new_data)[:,1][0]
-        seuil = 0.56
-        pred_class = "Complications" if pred_proba >= seuil else "Favorable"
+# --- Onglet 1 : Performance ---
+with tabs[0]:
+    st.subheader("Comparaison des modèles")
+    summary_metrics = []
+    for name, res in results.items():
+        report = classification_report(y_test, res["y_test_pred"], output_dict=True)
+        accuracy = report['accuracy']
+        precision = report['macro avg']['precision']
+        recall = report['macro avg']['recall']
+        f1 = report['macro avg']['f1-score']
+        auc = res['auc']
+        summary_metrics.append({
+            "Modèle": name,
+            "Accuracy": round(accuracy,3),
+            "Precision": round(precision,3),
+            "Recall": round(recall,3),
+            "F1-Score": round(f1,3),
+            "AUC-ROC": round(auc,3),
+            "Seuil optimal": round(res["threshold"],3)
+        })
+    summary_df = pd.DataFrame(summary_metrics).sort_values(by="AUC-ROC", ascending=False)
+    st.dataframe(summary_df)
 
-        st.success(f"✅ Résultat : **{pred_class}**")
-        st.metric("📊 Probabilité de complications", f"{pred_proba:.2f}")
+    # Modèle retenu
+    best_model_name = summary_df.iloc[0]["Modèle"]
+    st.write(f"**Modèle retenu : {best_model_name}**")
+    best_res = results[best_model_name]
 
+    # Courbe ROC
+    fpr, tpr, _ = roc_curve(y_test, best_res["y_test_proba"])
+    plt.figure(figsize=(6,5))
+    plt.plot(fpr, tpr, label=f'{best_model_name} (AUC = {best_res["auc"]:.3f})')
+    plt.plot([0,1],[0,1],'--', color='gray')
+    plt.xlabel("1 - Spécificité")
+    plt.ylabel("Sensibilité")
+    plt.title("Courbe ROC-AUC")
+    plt.legend()
+    st.pyplot(plt)
+
+    # Matrice de confusion
+    plt.figure(figsize=(5,4))
+    sns.heatmap(best_res["cm"], annot=True, fmt='d', cmap='Blues', cbar=False)
+    plt.xlabel("Prédit")
+    plt.ylabel("Réel")
+    plt.title(f"Matrice de confusion - {best_model_name}")
+    st.pyplot(plt)
+
+# --- Onglet 2 : Variables importantes ---
+with tabs[1]:
+    st.subheader("Importance des variables (Random Forest et LightGBM)")
+    for name in ["Random Forest", "LightGBM"]:
+        if name in models:
+            model = models[name]
+            if hasattr(model, "feature_importances_"):
+                importances = pd.Series(model.feature_importances_, index=X_train.columns).sort_values(ascending=False)
+                st.write(f"### {name}")
+                st.dataframe(importances)
+
+# --- Onglet 3 : Méthodologie ---
+with tabs[2]:
+    st.subheader("Méthodologie utilisée")
+    st.markdown("""
+    1. Prétraitement et sélection des variables.
+    2. Encodage des variables qualitatives et ordinales.
+    3. Standardisation des variables quantitatives.
+    4. Gestion du déséquilibre avec SMOTETomek.
+    5. Division en ensembles train/validation/test.
+    6. Modélisation avec Decision Tree, Random Forest, SVM et LightGBM.
+    7. Évaluation des modèles sur l'ensemble test (Accuracy, AUC-ROC, Sensibilité, Spécificité).
+    8. Sélection du meilleur modèle basé sur l'AUC-ROC.
+    """)
+
+# --- Onglet 4 : Simulateur ---
+with tabs[3]:
+    st.subheader("Simulateur de prédiction")
+    st.write("Renseignez les caractéristiques du patient :")
+    input_data = {}
+    for col in X_train.columns:
+        if col in quantitative_vars:
+            val = st.number_input(f"{col}", value=0.0)
+        else:
+            val = st.selectbox(f"{col}", [0,1])
+        input_data[col] = val
+    if st.button("Prédire l'évolution"):
+        input_df = pd.DataFrame([input_data])
+        pred_prob = best_res["model"].predict_proba(input_df)[:,1][0]
+        pred_class = int(pred_prob >= best_res["threshold"])
+        st.write(f"Probabilité de complication : {pred_prob:.3f}")
+        st.write(f"Classe prédite : {'Complications' if pred_class==1 else 'Favorable'}")
