@@ -10,9 +10,9 @@ warnings.filterwarnings("ignore", category=UserWarning, module="openpyxl")
 # Fonctions utilitaires
 # ============================
 def oui_non_vers_binaire(valeur):
-    if isinstance(valeur, str) and valeur.strip().lower() in ["oui", "o"]:
+    if isinstance(valeur, str) and valeur.strip().lower() in ["oui","o"]:
         return 1
-    elif isinstance(valeur, str) and valeur.strip().lower() in ["non", "n"]:
+    elif isinstance(valeur, str) and valeur.strip().lower() in ["non","n"]:
         return 0
     return valeur
 
@@ -79,6 +79,14 @@ def show_eda():
             fig.update_traces(textinfo='percent+label', pull=0.05)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Scolarité (camembert)
+        if "Niveau d'instruction scolarité" in identite.columns:
+            scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
+            fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
+                         title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
+
         # Âge
         age_col = "Âge du debut d etude en mois (en janvier 2023)"
         if age_col in identite.columns:
@@ -88,27 +96,6 @@ def show_eda():
                                color_discrete_sequence=["#2E86C1"])
             fig.update_traces(texttemplate="%{y}", textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
-
-        # Scolarisation
-        if "Niveau d'instruction scolarité" in identite.columns:
-            st.subheader("📚 Scolarisation des enfants")
-            scol_counts = identite["Niveau d'instruction scolarité"].value_counts()
-            fig_scol = px.bar(scol_counts, x=scol_counts.index, y=scol_counts.values,
-                              title="Répartition de la scolarisation", text=scol_counts.values,
-                              color_discrete_sequence=["#FFA500"])
-            fig_scol.update_traces(textposition="outside")
-            st.plotly_chart(fig_scol, use_container_width=True)
-
-        # Statut des parents
-        if "Parents Salariés" in identite.columns:
-            st.subheader("👨‍👩‍👧 Statut des parents")
-            parents_counts = identite["Parents Salariés"].map(oui_non_vers_binaire).value_counts()
-            parents_labels = {1:"Oui", 0:"Non"}
-            parents_counts.index = parents_counts.index.map(parents_labels)
-            fig_parents = px.pie(parents_counts, names=parents_counts.index, values=parents_counts.values,
-                                 title="Parents salariés", color_discrete_sequence=px.colors.sequential.Teal)
-            fig_parents.update_traces(textinfo='percent+label', pull=0.05)
-            st.plotly_chart(fig_parents, use_container_width=True)
 
     # ============================
     # 2️⃣ Drépanocytose
@@ -122,19 +109,9 @@ def show_eda():
             type_counts = drepano['Type de drépanocytose'].value_counts()
             st.table(type_counts)
 
-        # Prise en charge
-        if "Prise en charge" in drepano.columns:
-            st.subheader("🏥 Prise en charge des patients")
-            prise_counts = drepano["Prise en charge"].value_counts()
-            fig_prise = px.bar(prise_counts, x=prise_counts.index, y=prise_counts.values,
-                                title="Types de prise en charge", text=prise_counts.values,
-                                color_discrete_sequence=["#2E86C1"])
-            fig_prise.update_traces(textposition="outside")
-            st.plotly_chart(fig_prise, use_container_width=True)
-
-        # Paramètres biologiques
         bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                     "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+
         st.subheader("📌 Paramètres biologiques (statistiques descriptives)")
         stats_data = {}
         for col in bio_cols:
@@ -146,17 +123,10 @@ def show_eda():
                     "Min": drepano[col].min(),
                     "Max": drepano[col].max()
                 }
+
         if stats_data:
             stats_df = pd.DataFrame(stats_data).T.round(2)
             st.table(stats_df)
-
-        # Évolution par type de drépanocytose
-        if "Evolution" in drepano.columns:
-            st.subheader("📊 Évolution par type de drépanocytose")
-            evo_counts = pd.crosstab(drepano["Type de drépanocytose"], drepano["Evolution"], normalize='index')*100
-            fig_evo = px.bar(evo_counts, barmode="group", text_auto=".2f",
-                             title="Évolution selon le type de drépanocytose")
-            st.plotly_chart(fig_evo, use_container_width=True)
 
     # ============================
     # 4️⃣ Consultations d'urgence
@@ -169,9 +139,11 @@ def show_eda():
         if nom in feuilles:
             df_urg = feuilles[nom]
             df_urg = convertir_df_oui_non(df_urg)
+
             date_col_candidates = [c for c in df_urg.columns if "date" in c.lower()]
             if date_col_candidates:
                 df_urg = df_urg[df_urg[date_col_candidates[0]].notna()]
+
             st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
 
             data_symptomes = {}
@@ -196,46 +168,34 @@ def show_eda():
             'Mois':[mois_noms[m] for m in repartition_mensuelle.index],
             'Nombre de consultations': repartition_mensuelle.values
         })
-        repartition_df['Pourcentage (%)'] = (repartition_df['Nombre de consultations'] /
-                                            repartition_df['Nombre de consultations'].sum()*100).round(2)
-
         fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
                       title="Répartition mensuelle des urgences drépanocytaires",
-                      markers=True, color_discrete_sequence=["#2E86C1"])
+                      markers=True)
         st.plotly_chart(fig, use_container_width=True)
 
     # ============================
-    # 6️⃣ Analyse binaire (Evolution vs autres variables)
+    # 6️⃣ Analyse binaire : Evolution vs variables
     # ============================
     st.header("6️⃣ Analyse binaire : Evolution vs autres variables")
     try:
         df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
-        st.success("✅ Fichier 'fichier_nettoye.xlsx' chargé avec succès !")
         cible = "Evolution"
         if cible in df_nettoye.columns:
-            variables_interessantes = [
-                "Type de drépanocytose", "Sexe",
-                "Âge du debut d etude en mois (en janvier 2023)",
-                "Origine Géographique", "Taux d'Hb (g/dL)",
-                "% d'Hb F", "% d'Hb S", "% d'HB C",
-                "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"
-            ]
+            variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
+                         "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
 
-            for var in variables_interessantes:
+            for var in variables:
                 if var in df_nettoye.columns:
-                    st.subheader(f"📌 {var} vs {cible}")
-                    if df_nettoye[var].dtype == "object":
-                        cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index") * 100
+                    st.subheader(f"{var} vs {cible}")
+
+                    if df_nettoye[var].dtype=="object":
+                        cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
                         st.dataframe(cross_tab.round(2))
                         fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
                                      title=f"{var} vs {cible}")
                         st.plotly_chart(fig, use_container_width=True)
                     else:
-                        df_num = pd.to_numeric(df_nettoye[var], errors='coerce')
-                        df_nettoye[var] = df_num
                         stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
                         st.table(stats_group)
-        else:
-            st.error("⚠️ La variable 'Evolution' est absente du fichier 'fichier_nettoye.xlsx'.")
     except FileNotFoundError:
-        st.warning("⚠️ Le fichier 'fichier_nettoye.xlsx' est introuvable.")
+        st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
