@@ -103,15 +103,22 @@ def show_eda():
 
         bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                     "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-        st.subheader("Paramètres biologiques")
+
+        st.subheader("📌 Paramètres biologiques (statistiques descriptives)")
+        stats_data = {}
         for col in bio_cols:
             if col in drepano.columns:
                 drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
-                fig = px.histogram(drepano, x=col, nbins=15,
-                                   title=col,
-                                   color_discrete_sequence=["#E74C3C"])
-                fig.update_traces(texttemplate="%{y}", textposition="outside")
-                st.plotly_chart(fig, use_container_width=True)
+                stats_data[col] = {
+                    "Moyenne": drepano[col].mean(),
+                    "Médiane": drepano[col].median(),
+                    "Min": drepano[col].min(),
+                    "Max": drepano[col].max()
+                }
+
+        if stats_data:
+            stats_df = pd.DataFrame(stats_data).T.round(2)
+            st.table(stats_df)
 
     # ============================
     # 4️⃣ Consultations d'urgence
@@ -132,7 +139,7 @@ def show_eda():
 
             st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
 
-            # Affiche les symptômes (tableau seulement, pas de graphiques)
+            # Symptômes en tableau
             data_symptomes = {}
             for s in symptomes:
                 if s in df_urg.columns and not df_urg[s].dropna().empty:
@@ -175,10 +182,8 @@ def show_eda():
         df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
         st.success("✅ Fichier 'fichier_nettoye.xlsx' chargé avec succès pour l'analyse binaire !")
 
-        if "Evolution" in df_nettoye.columns:
-            cible = "Evolution"
-
-            # Variables explicatives intéressantes
+        cible = "Evolution"
+        if cible in df_nettoye.columns:
             variables_interessantes = [
                 "Type de drépanocytose",
                 "Sexe",
@@ -213,18 +218,14 @@ def show_eda():
 
                     # Cas 2 : variable numérique
                     else:
-                        fig = px.box(
-                            df_nettoye,
-                            x=cible,
-                            y=var,
-                            points="all",
-                            title=f"Distribution de {var} selon {cible}",
-                            labels={var: var, "Evolution": "Evolution"}
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
+                        df_num = pd.to_numeric(df_nettoye[var], errors='coerce')
+                        df_nettoye[var] = df_num
+                        stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
+                        st.write("📊 Statistiques descriptives par groupe d'évolution")
+                        st.table(stats_group)
 
         else:
-            st.error("⚠️ La variable cible 'Evolution' est introuvable dans fichier_nettoye.xlsx.")
+            st.error("⚠️ La variable 'Evolution' est absente du fichier 'fichier_nettoye.xlsx'.")
 
     except FileNotFoundError:
         st.warning("⚠️ Le fichier 'fichier_nettoye.xlsx' est introuvable. Place-le à la racine du projet.")
