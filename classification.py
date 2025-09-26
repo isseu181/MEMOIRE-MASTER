@@ -2,28 +2,30 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
+import joblib
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve, accuracy_score
 from imblearn.combine import SMOTETomek
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
-import warnings
-warnings.filterwarnings("ignore")
+
+st.set_page_config(page_title="Classification Patients", layout="wide")
 
 def show_classification():
-    st.title("Classification Patients - Évolution de la maladie")
+    st.title("Classification des patients - Évolution")
 
     # ================================
-    # 1. Chargement des données
+    # 1. Chargement automatique des données
     # ================================
     st.info("Chargement automatique de la base : fichier_nettoye.xlsx")
     df = pd.read_excel("fichier_nettoye.xlsx")
-    
+
     # ================================
     # 2. Variables sélectionnées
     # ================================
@@ -44,7 +46,7 @@ def show_classification():
     df_selected = df[variables_selection].copy()
 
     # ================================
-    # 3. Encodage binaire (0=Non,1=Oui) et ordinal
+    # 3. Encodage
     # ================================
     binary_mappings = {
         'Pâleur': {'OUI':1, 'NON':0},
@@ -66,11 +68,10 @@ def show_classification():
     }
     df_selected.replace(ordinal_mappings, inplace=True)
 
-    # One-hot encoding pour variables catégorielles
     df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
 
     # ================================
-    # 4. Standardisation
+    # 4. Standardisation (exclure NiveauUrgence)
     # ================================
     quantitative_vars = [
         'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
@@ -88,7 +89,7 @@ def show_classification():
     # 5. Variable cible
     # ================================
     df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
-    X = df_selected.drop(['Evolution','Evolution_Cible'], axis=1)
+    X = df_selected.drop(['Evolution', 'Evolution_Cible'], axis=1)
     y = df_selected['Evolution_Cible']
 
     # ================================
@@ -113,9 +114,6 @@ def show_classification():
         "LightGBM": lgb.LGBMClassifier(objective='binary', learning_rate=0.05, num_leaves=31, n_estimators=500, random_state=42)
     }
 
-    # ================================
-    # 9. Evaluation
-    # ================================
     results = {}
     for name, model in models.items():
         model.fit(X_train, y_train)
@@ -127,21 +125,23 @@ def show_classification():
         cm = confusion_matrix(y_test, y_test_pred)
         auc = roc_auc_score(y_test, y_test_proba)
         results[name] = {
+            "Model": model,
             "Confusion Matrix": cm,
             "Classification Report": classification_report(y_test, y_test_pred, output_dict=True),
             "AUC-ROC": auc,
-            "Optimal Threshold": optimal_threshold
+            "Optimal Threshold": optimal_threshold,
+            "y_test_proba": y_test_proba,
+            "y_test_pred": y_test_pred
         }
 
     # ================================
-    # Onglets Streamlit
+    # Onglets horizontaux
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
     # --- Onglet 1 : Performance ---
     with tabs[0]:
         st.subheader("Comparaison des modèles")
-        # Tableau résumé
         summary_metrics = []
         for name, res in results.items():
             report = res['Classification Report']
@@ -162,74 +162,81 @@ def show_classification():
         summary_df = pd.DataFrame(summary_metrics).sort_values(by="AUC-ROC", ascending=False)
         st.dataframe(summary_df)
 
-        # Détermination du meilleur modèle selon plusieurs métriques (AUC + Accuracy + F1)
-        best_model_name = summary_df.sort_values(by=['AUC-ROC','Accuracy','F1-Score'], ascending=False).iloc[0]['Modèle']
+        # Sélection du meilleur modèle (meilleur sur tous les metrics)
+        best_model_name = summary_df.sort_values(by=["Accuracy","Precision","Recall","F1-Score","AUC-ROC"], ascending=False).iloc[0]['Modèle']
         st.success(f"✅ Meilleur modèle : {best_model_name}")
-
-        # Affichage matrice de confusion et courbe ROC
         best_res = results[best_model_name]
-        st.write("### Matrice de confusion")
-        cm = best_res["Confusion Matrix"]
+
+        st.write("### Matrice de confusion du meilleur modèle")
         fig, ax = plt.subplots()
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False)
-        plt.xlabel("Prédit")
-        plt.ylabel("Réel")
+        sns.heatmap(best_res["Confusion Matrix"], annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
+        ax.set_xlabel("Prédit")
+        ax.set_ylabel("Réel")
         st.pyplot(fig)
 
-        st.write("### Courbe ROC")
-        y_test_proba = models[best_model_name].predict_proba(X_test)[:,1]
-        fpr, tpr, _ = roc_curve(y_test, y_test_proba)
-        roc_auc = roc_auc_score(y_test, y_test_proba)
-        fig2, ax2 = plt.subplots()
-        ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'{best_model_name} (AUC = {roc_auc:.3f})')
-        ax2.plot([0,1],[0,1], color='navy', lw=2, linestyle='--')
-        ax2.set_xlabel('Taux de faux positifs (1-Spécificité)')
-        ax2.set_ylabel('Taux de vrais positifs (Sensibilité)')
-        ax2.set_title('Courbe ROC')
-        ax2.legend(loc="lower right")
-        st.pyplot(fig2)
+        st.write("### Courbe ROC-AUC")
+        fpr, tpr, _ = roc_curve(y_test, best_res['y_test_proba'])
+        plt.figure(figsize=(8,6))
+        plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'{best_model_name} (AUC = {best_res["AUC-ROC"]:.3f})')
+        plt.plot([0,1], [0,1], color='navy', lw=2, linestyle='--')
+        plt.xlabel("Taux de faux positifs (1 - Spécificité)")
+        plt.ylabel("Taux de vrais positifs (Sensibilité)")
+        plt.title("Courbe ROC")
+        plt.legend(loc="lower right")
+        st.pyplot(plt)
+
+        st.write("### Métriques du meilleur modèle")
+        st.write(pd.DataFrame({
+            "Metric": ["Accuracy","Precision","Recall","F1-Score","AUC-ROC","Seuil optimal"],
+            "Valeur": [best_res["Classification Report"]["accuracy"],
+                       best_res["Classification Report"]["macro avg"]["precision"],
+                       best_res["Classification Report"]["macro avg"]["recall"],
+                       best_res["Classification Report"]["macro avg"]["f1-score"],
+                       best_res["AUC-ROC"],
+                       best_res["Optimal Threshold"]]
+        }))
+
+        st.info("Pour les variables binaires : 0 = Non, 1 = Oui")
 
     # --- Onglet 2 : Variables importantes ---
     with tabs[1]:
-        st.subheader("Variables importantes (Random Forest)")
-        best_rf = models["Random Forest"]
-        importances = best_rf.feature_importances_
-        feat_importances = pd.Series(importances, index=X_train.columns).sort_values(ascending=False)
-        st.dataframe(feat_importances)
-
-        fig, ax = plt.subplots(figsize=(10,6))
-        sns.barplot(x=feat_importances.values, y=feat_importances.index, palette='viridis', ax=ax)
-        plt.title("Importance des variables - Random Forest")
-        st.pyplot(fig)
+        st.subheader("Importance des variables pour Random Forest")
+        rf_model = results["Random Forest"]["Model"]
+        importances = pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending=False)
+        st.dataframe(importances)
 
     # --- Onglet 3 : Méthodologie ---
     with tabs[2]:
         st.subheader("Méthodologie")
         st.markdown("""
-        1. Prétraitement des données et sélection des variables
-        2. Encodage binaire (0=Non,1=Oui) et ordinal
-        3. Standardisation des variables quantitatives
-        4. Gestion du déséquilibre avec SMOTETomek
-        5. Division train/val/test
-        6. Entraînement de plusieurs modèles (Decision Tree, Random Forest, SVM, LightGBM)
-        7. Évaluation des modèles avec Accuracy, Precision, Recall, F1-Score et AUC-ROC
-        8. Comparaison des modèles et sélection du meilleur modèle
+        1. Prétraitement des données et sélection des variables.  
+        2. Encodage des variables binaires et ordinales.  
+        3. Standardisation des variables quantitatives (excluant NiveauUrgence).  
+        4. Gestion du déséquilibre via SMOTETomek.  
+        5. Séparation train/validation/test.  
+        6. Entraînement de plusieurs modèles : Decision Tree, Random Forest, SVM, LightGBM.  
+        7. Comparaison des modèles selon Accuracy, Precision, Recall, F1-Score, AUC-ROC.  
+        8. Sélection du meilleur modèle et affichage de ses métriques et courbes.  
         """)
 
     # --- Onglet 4 : Simulateur ---
     with tabs[3]:
         st.subheader("Simulateur de prédiction")
-        st.info("Remplir les informations patient pour prédire l'évolution")
-        user_input = {}
+        st.write("Sélectionnez les valeurs des variables pour prédire l'évolution du patient avec le modèle Random Forest.")
+        input_data = {}
         for col in X_train.columns:
-            if df_selected[col].nunique() <= 5:
-                user_input[col] = st.selectbox(col, options=df_selected[col].unique())
+            if col in binary_mappings.keys():
+                input_data[col] = st.selectbox(col, [0,1])
+            elif col in ordinal_mappings.keys():
+                input_data[col] = st.number_input(col, min_value=int(df_selected[col].min()), max_value=int(df_selected[col].max()))
             else:
-                user_input[col] = st.number_input(col, float(df_selected[col].min()), float(df_selected[col].max()), float(df_selected[col].mean()))
+                input_data[col] = st.number_input(col, float(df_selected[col].min()), float(df_selected[col].max()))
+
         if st.button("Prédire l'évolution"):
-            input_df = pd.DataFrame([user_input])
+            input_df = pd.DataFrame([input_data])
+            # Standardiser les quantitatives
             input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
-            pred_proba = models[best_model_name].predict_proba(input_df)[:,1]
-            pred_class = (pred_proba >= best_res["Optimal Threshold"]).astype(int)[0]
-            st.write(f"Probabilité de complications : {pred_proba[0]:.3f}")
-            st.write(f"Prédiction : {'Complications (1)' if pred_class==1 else 'Favorable (0)'}")
+            pred_prob = rf_model.predict_proba(input_df)[:,1]
+            pred_class = (pred_prob >= results["Random Forest"]["Optimal Threshold"]).astype(int)
+            st.write(f"Probabilité de complications : {pred_prob[0]:.3f}")
+            st.write(f"Classe prédite : {'Complications' if pred_class[0]==1 else 'Favorable'}")
