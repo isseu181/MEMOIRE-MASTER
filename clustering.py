@@ -13,18 +13,10 @@ st.set_page_config(page_title="Segmentation Patients", layout="wide")
 st.title("Segmentation de Patients - KMeans Clustering")
 
 # ================================
-# Sidebar : upload ou base par défaut
+# Chargement automatique de la base
 # ================================
-st.sidebar.header("Paramètres")
-uploaded_file = st.sidebar.file_uploader("📂 Choisir un fichier Excel", type=["xlsx"])
-
-# Base par défaut : segmentation.xlsx
-if uploaded_file is None:
-    st.sidebar.info("Aucun fichier uploadé, utilisation de segmentation.xlsx par défaut.")
-    df = pd.read_excel("segmentation.xlsx")
-else:
-    df = pd.read_excel(uploaded_file)
-
+st.info("Chargement automatique de la base de données : segmentation.xlsx")
+df = pd.read_excel("segmentation.xlsx")
 df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
 # ================================
