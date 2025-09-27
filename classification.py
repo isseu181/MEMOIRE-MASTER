@@ -28,20 +28,25 @@ def show_classification():
     scaler = joblib.load("scaler.pkl")
     features = joblib.load("features.pkl")
 
+    # ================================
+    # 2. Préparation des données
+    # ================================
     df_selected = df.copy()
 
-    # 🔹 Correction KeyError : créer les colonnes manquantes si nécessaire
+    # Ajouter les colonnes manquantes avec 0
     for col in features:
         if col not in df_selected.columns:
             df_selected[col] = 0
 
+    # Sélectionner les colonnes dans le bon ordre
     X = df_selected[features]
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
+    # Transformation
     X_scaled = scaler.transform(X)
 
     # ================================
-    # 2. Onglets Streamlit
+    # 3. Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -119,7 +124,6 @@ def show_classification():
             feat_importance = pd.DataFrame({"Variable": features, "Importance": importances})
             feat_importance = feat_importance.sort_values(by="Importance", ascending=False)
             st.dataframe(feat_importance)
-            # Graphique
             fig, ax = plt.subplots(figsize=(10,6))
             sns.barplot(x="Importance", y="Variable", data=feat_importance, ax=ax, palette="viridis")
             ax.set_title("Variables importantes")
@@ -147,7 +151,6 @@ def show_classification():
 
         user_input = {}
         for feat in features:
-            # Si variable binaire
             if df_selected[feat].nunique() == 2:
                 user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
             else:
