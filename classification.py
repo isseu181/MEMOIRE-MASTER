@@ -213,5 +213,24 @@ def show_classification():
 
     # --- Onglet 4 : Simulateur ---
     with tabs[3]:
-        st.subheader("Simulateur")
-        st.info("A compléter : interface pour tester de nouvelles données et prédire l'évolution")
+        st.subheader("Simulateur de prédiction pour un nouveau patient")
+        new_data = {}
+        for col in features:
+            if col in binary_cols:
+                new_data[col] = st.selectbox(f"{col} (0=NON,1=OUI)", [0,1])
+            elif col in quantitative_vars:
+                new_data[col] = st.number_input(f"{col}", value=float(df_selected[col].mean()))
+            elif col in ordinal_cols:
+                new_data[col] = st.selectbox(f"{col}", list(ordinal_cols[col].values()))
+            else:
+                new_data[col] = st.number_input(f"{col}", value=float(df_selected[col].mean()))
+
+        if st.button("Prédire l'évolution"):
+            new_df = pd.DataFrame([new_data])
+            new_df_scaled = scaler.transform(new_df[features])
+            proba = rf_model.predict_proba(new_df_scaled)[:,1][0]
+            pred = int(proba >= 0.56)
+            st.write(f"Prédiction : {'Complications' if pred==1 else 'Favorable'}")
+            st.write(f"Probabilité de complications : {proba:.3f}")
+    
+
