@@ -29,14 +29,11 @@ def show_classification():
     features = joblib.load("features.pkl")
 
     df_selected = df.copy()
-
-    # ------------------------------
-    # Correction pour scaler
-    # ------------------------------
-    # S'assurer que X contient exactement les mêmes colonnes que celles utilisées pour le scaler
-    X = df_selected.reindex(columns=features, fill_value=0)
+    # S'assurer que X a exactement les colonnes du scaler
+    X = df_selected.reindex(columns=features, fill_value=0).astype(float)
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
+    # Transformation avec scaler
     X_scaled = scaler.transform(X)
 
     # ================================
@@ -157,7 +154,7 @@ def show_classification():
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
-            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0))
+            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0).astype(float))
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
