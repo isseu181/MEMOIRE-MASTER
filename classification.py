@@ -1,168 +1,159 @@
-# classification.py
-import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
+from imblearn.combine import SMOTETomek
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, roc_curve, confusion_matrix
-)
-from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
 
-st.set_page_config(page_title="Classification Patients", layout="wide")
+# ================================
+# 1 Chargement des données
+# ================================
+df = pd.read_excel("fichier_nettoye.xlsx")
 
-def show_classification():
-    st.title("Classification Patients - Evolution clinique")
+# ================================
+# 2 Variables sélectionnées
+# ================================
+variables_selection = [
+    'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+    "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+    'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+    'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+    "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+    'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+    'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+    'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+    'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+    "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+    'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+    'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+]
+df_selected = df[variables_selection].copy()
 
-    # ================================
-    # 1. Chargement des fichiers
-    # ================================
-    df = pd.read_excel("fichier_nettoye.xlsx")
-    best_model = joblib.load("random_forest_model.pkl")
-    scaler = joblib.load("scaler.pkl")
-    features = joblib.load("features.pkl")
+# ================================
+# 3 Encodage binaire
+# ================================
+binary_mappings = {
+    'Pâleur': {'OUI':1, 'NON':0},
+    'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
+    'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
+    'Splénomégalie': {'OUI':1, 'NON':0},
+    'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
+    'Parents Salariés': {'OUI':1, 'NON':0},
+    'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
+    'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
+    'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
+    'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+}
+df_selected.replace(binary_mappings, inplace=True)
 
-    # ================================
-    # 2. Préparation des données
-    # ================================
-    df_selected = df.copy()
+# ================================
+# 4 Encodages à comparer
+# ================================
 
-    # Ajouter les colonnes manquantes avec 0
-    for col in features:
-        if col not in df_selected.columns:
-            df_selected[col] = 0
+# --- Option 1 : Ordinal pour instruction + One-hot pour mois
+df_enc1 = df_selected.copy()
+ordinal_mappings = {
+    'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
+    "Niveau d'instruction scolarité": {'NON':0, 'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4}
+}
+df_enc1.replace(ordinal_mappings, inplace=True)
+df_enc1 = pd.get_dummies(df_enc1, columns=['Diagnostic Catégorisé','Mois'], drop_first=True)
 
-    # Sélectionner les colonnes dans le bon ordre
-    X = df_selected[features]
-    y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+# --- Option 2 : One-hot pour instruction + Encodage cyclique pour mois
+df_enc2 = df_selected.copy()
+df_enc2.replace({'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6}}, inplace=True)
+df_enc2 = pd.get_dummies(df_enc2, columns=["Niveau d'instruction scolarité"], drop_first=True)
+df_enc2['Mois_num'] = df_enc2['Mois'].str.extract('(\d+)').astype(int)
+df_enc2['Mois_sin'] = np.sin(2 * np.pi * df_enc2['Mois_num']/12)
+df_enc2['Mois_cos'] = np.cos(2 * np.pi * df_enc2['Mois_num']/12)
+df_enc2.drop(columns=['Mois','Mois_num'], inplace=True)
+df_enc2 = pd.get_dummies(df_enc2, columns=['Diagnostic Catégorisé'], drop_first=True)
 
-    # Transformation
-    X_scaled = scaler.transform(X)
+# ================================
+# 5 Fonction pipeline entraînement & évaluation
+# ================================
+def run_pipeline(df_enc, option_name):
+    quantitative_vars = [
+        'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
+        'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
+        'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
+        'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
+        "Nbre d'hospitalisations entre 2017 et 2023",
+        'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
+        'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
+    ]
 
-    # ================================
-    # 3. Onglets Streamlit
-    # ================================
-    tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
+    df_enc['Evolution_Cible'] = df_enc['Evolution'].map({'Favorable':0, 'Complications':1})
+    X = df_enc.drop(['Evolution','Evolution_Cible'], axis=1)
+    y = df_enc['Evolution_Cible']
 
-    # --- Onglet 1 : Performance ---
-    with tabs[0]:
-        st.subheader("Comparaison des modèles et métriques")
+    smt = SMOTETomek(random_state=42)
+    X_res, y_res = smt.fit_resample(X, y)
 
-        # Définition des modèles
-        models = {
-            "Decision Tree": DecisionTreeClassifier(random_state=42),
-            "Random Forest": best_model,
-            "SVM": SVC(probability=True, random_state=42),
-            "LightGBM": lgb.LGBMClassifier()
-        }
+    X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
 
-        results = []
-        for name, mdl in models.items():
-            if name != "Random Forest":
-                mdl.fit(X_scaled, y)
+    scaler = StandardScaler()
+    X_train_scaled = X_train.copy()
+    X_val_scaled = X_val.copy()
+    X_test_scaled = X_test.copy()
+    X_train_scaled[quantitative_vars] = scaler.fit_transform(X_train[quantitative_vars])
+    X_val_scaled[quantitative_vars] = scaler.transform(X_val[quantitative_vars])
+    X_test_scaled[quantitative_vars] = scaler.transform(X_test[quantitative_vars])
 
-            y_proba = mdl.predict_proba(X_scaled)[:,1]
-            fpr, tpr, thresholds = roc_curve(y, y_proba)
-            optimal_threshold = thresholds[np.argmax(tpr - fpr)]
-            y_pred = (y_proba >= optimal_threshold).astype(int)
+    models = {
+        "Decision Tree": DecisionTreeClassifier(random_state=42),
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "SVM": SVC(probability=True, random_state=42),
+        "LightGBM": lgb.LGBMClassifier(objective='binary', learning_rate=0.05, num_leaves=31, n_estimators=500, random_state=42)
+    }
 
-            results.append({
-                "Modèle": name,
-                "Accuracy": accuracy_score(y, y_pred),
-                "Precision": precision_score(y, y_pred),
-                "Recall": recall_score(y, y_pred),
-                "F1-Score": f1_score(y, y_pred),
-                "AUC-ROC": roc_auc_score(y, y_proba),
-                "Seuil optimal": optimal_threshold
-            })
+    results = []
+    for name, model in models.items():
+        model.fit(X_train_scaled, y_train)
+        y_val_proba = model.predict_proba(X_val_scaled)[:,1]
+        fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
+        optimal_threshold = thresholds[np.argmax(tpr - fpr)]
 
-        results_df = pd.DataFrame(results)
-        st.dataframe(results_df)
+        y_test_proba = model.predict_proba(X_test_scaled)[:,1]
+        y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
 
-        # Détermination du meilleur modèle selon moyenne métriques
-        metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
-        results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
-        best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
-        st.success(f"✅ Modèle retenu : {best_row['Modèle']}")
+        report = classification_report(y_test, y_test_pred, output_dict=True)
+        auc = roc_auc_score(y_test, y_test_proba)
 
-        # Matrice de confusion
-        best_model_final = models[best_row["Modèle"]]
-        y_proba_best = best_model_final.predict_proba(X_scaled)[:,1]
-        y_pred_best = (y_proba_best >= best_row["Seuil optimal"]).astype(int)
+        results.append({
+            "Option": option_name,
+            "Modèle": name,
+            "Accuracy": round(report['accuracy'],3),
+            "Precision": round(report['macro avg']['precision'],3),
+            "Recall": round(report['macro avg']['recall'],3),
+            "F1-Score": round(report['macro avg']['f1-score'],3),
+            "AUC-ROC": round(auc,3),
+            "Seuil optimal": round(optimal_threshold,3)
+        })
 
-        cm = confusion_matrix(y, y_pred_best)
-        fig, ax = plt.subplots()
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
-        ax.set_xlabel("Prédit")
-        ax.set_ylabel("Réel")
-        ax.set_title(f"Matrice de confusion - {best_row['Modèle']}")
-        st.pyplot(fig)
+    return pd.DataFrame(results)
 
-        # Courbe ROC
-        fpr, tpr, _ = roc_curve(y, y_proba_best)
-        roc_auc = roc_auc_score(y, y_proba_best)
-        fig2, ax2 = plt.subplots()
-        ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
-        ax2.plot([0,1],[0,1], color='navy', lw=2, linestyle='--')
-        ax2.set_xlabel("Taux de faux positifs (1-Spécificité)")
-        ax2.set_ylabel("Taux de vrais positifs (Sensibilité)")
-        ax2.set_title(f"Courbe ROC - {best_row['Modèle']}")
-        ax2.legend(loc="lower right")
-        st.pyplot(fig2)
+# ================================
+# 6 Lancer les deux options
+# ================================
+summary1 = run_pipeline(df_enc1, "Ordinal + One-hot mois")
+summary2 = run_pipeline(df_enc2, "One-hot instruction + Mois cyclique")
+summary_df = pd.concat([summary1, summary2]).reset_index(drop=True)
 
-    # --- Onglet 2 : Variables importantes ---
-    with tabs[1]:
-        st.subheader("Importance des variables")
-        if hasattr(best_model, "feature_importances_"):
-            importances = best_model.feature_importances_
-            feat_importance = pd.DataFrame({"Variable": features, "Importance": importances})
-            feat_importance = feat_importance.sort_values(by="Importance", ascending=False)
-            st.dataframe(feat_importance)
-            fig, ax = plt.subplots(figsize=(10,6))
-            sns.barplot(x="Importance", y="Variable", data=feat_importance, ax=ax, palette="viridis")
-            ax.set_title("Variables importantes")
-            st.pyplot(fig)
-        else:
-            st.info("Le modèle sélectionné ne fournit pas d'importance des variables.")
-
-    # --- Onglet 3 : Méthodologie ---
-    with tabs[2]:
-        st.subheader("Méthodologie utilisée")
-        st.markdown("""
-        1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.
-        2. **Encodage des variables qualitatives** : 0 = Non, 1 = Oui, et encodage ordinal si nécessaire.
-        3. **Standardisation** : mise à l’échelle des variables quantitatives via StandardScaler.
-        4. **Sélection des features** : sauvegardées dans `features.pkl`.
-        5. **Entraînement des modèles** : Random Forest, Decision Tree, SVM, LightGBM.
-        6. **Evaluation** : Accuracy, Precision, Recall, F1-Score, AUC-ROC, seuil optimal.
-        7. **Comparaison des modèles** : choix du meilleur modèle par moyenne des métriques.
-        """)
-
-    # --- Onglet 4 : Simulateur ---
-    with tabs[3]:
-        st.subheader("Simulateur de prédiction")
-        st.markdown("Entrez les valeurs des variables pour prédire l'évolution clinique")
-
-        user_input = {}
-        for feat in features:
-            if df_selected[feat].nunique() == 2:
-                user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
-            else:
-                min_val = float(df_selected[feat].min())
-                max_val = float(df_selected[feat].max())
-                mean_val = float(df_selected[feat].mean())
-                user_input[feat] = st.number_input(feat, min_value=min_val, max_value=max_val, value=mean_val)
-
-        if st.button("Prédire l'évolution"):
-            X_new = pd.DataFrame([user_input])
-            X_new_scaled = scaler.transform(X_new)
-            y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
-            y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
-            st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
-            st.write("**Prédiction finale :**", "Complications" if y_new_pred[0]==1 else "Favorable")
+# ================================
+# 7 Résultats comparatifs
+# ================================
+print(summary_df)
+plt.figure(figsize=(12,6))
+sns.barplot(x="Modèle", y="AUC-ROC", hue="Option", data=summary_df)
+plt.title("Comparaison AUC-ROC selon l'encodage")
+plt.ylim(0,1)
+plt.show()
