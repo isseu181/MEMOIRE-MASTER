@@ -29,6 +29,12 @@ def show_classification():
     features = joblib.load("features.pkl")
 
     df_selected = df.copy()
+
+    # 🔹 Correction KeyError : créer les colonnes manquantes si nécessaire
+    for col in features:
+        if col not in df_selected.columns:
+            df_selected[col] = 0
+
     X = df_selected[features]
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
