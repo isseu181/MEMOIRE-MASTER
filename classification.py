@@ -30,15 +30,11 @@ def show_classification():
 
     df_selected = df.copy()
 
-    # ================================
-    # Correction pour les colonnes manquantes
-    # ================================
-    for col in features:
-        if col not in df_selected.columns:
-            df_selected[col] = 0  # Ajoute colonne manquante avec 0
-
-    # Sélectionner les colonnes dans le bon ordre
-    X = df_selected[features]
+    # ------------------------------
+    # Correction pour scaler
+    # ------------------------------
+    # S'assurer que X contient exactement les mêmes colonnes que celles utilisées pour le scaler
+    X = df_selected.reindex(columns=features, fill_value=0)
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
     X_scaled = scaler.transform(X)
@@ -161,7 +157,7 @@ def show_classification():
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
-            X_new_scaled = scaler.transform(X_new)
+            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0))
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
