@@ -5,7 +5,10 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, roc_curve, confusion_matrix, classification_report
+)
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -26,16 +29,78 @@ def show_classification():
     features = joblib.load("features.pkl")
 
     # ================================
-    # 2️⃣ Sélection des variables
+    # 2️⃣ Sélection des colonnes
     # ================================
-    df_selected = df.copy()
-    X = df_selected.reindex(columns=features, fill_value=0).astype(float)
-    y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
-
-    X_scaled = scaler.transform(X)
+    variables_selection = [
+        'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+        "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+        'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+        'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+        "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+        'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+        'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+        'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+        'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+        "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+        'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+        'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+    ]
+    df_selected = df[variables_selection].copy()
 
     # ================================
-    # 3️⃣ Onglets Streamlit
+    # 3️⃣ Encodage
+    # ================================
+    binary_mappings = {
+        'Pâleur': {'OUI':1, 'NON':0},
+        'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
+        'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
+        'Splénomégalie': {'OUI':1, 'NON':0},
+        'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
+        'Parents Salariés': {'OUI':1, 'NON':0},
+        'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
+        'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
+        'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
+        'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+    }
+    df_selected.replace(binary_mappings, inplace=True)
+
+    ordinal_mappings = {
+        'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
+        "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
+    }
+    df_selected.replace(ordinal_mappings, inplace=True)
+
+    df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
+
+    # ================================
+    # 4️⃣ Variable cible
+    # ================================
+    df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+
+    # Reindexer pour correspondre aux features sauvegardées
+    X = df_selected.reindex(columns=features, fill_value=0)
+    # Convertir en float uniquement pour les colonnes numériques
+    for col in X.columns:
+        X[col] = pd.to_numeric(X[col], errors='coerce').fillna(0)
+
+    y = df_selected['Evolution_Cible']
+
+    # ================================
+    # 5️⃣ Standardisation
+    # ================================
+    quantitative_vars = [
+        'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
+        'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
+        'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
+        'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
+        "Nbre d'hospitalisations entre 2017 et 2023",
+        'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
+        'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
+    ]
+    X[quantitative_vars] = scaler.transform(X[quantitative_vars])
+
+    # ================================
+    # 6️⃣ Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -53,9 +118,9 @@ def show_classification():
         results = []
         for name, mdl in models.items():
             if name != "Random Forest":
-                mdl.fit(X_scaled, y)
+                mdl.fit(X, y)
 
-            y_proba = mdl.predict_proba(X_scaled)[:,1]
+            y_proba = mdl.predict_proba(X)[:,1]
             fpr, tpr, thresholds = roc_curve(y, y_proba)
             optimal_threshold = thresholds[np.argmax(tpr - fpr)]
             y_pred = (y_proba >= optimal_threshold).astype(int)
@@ -73,15 +138,10 @@ def show_classification():
         results_df = pd.DataFrame(results)
         st.dataframe(results_df)
 
-        # Meilleur modèle
-        metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
-        results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
-        best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
-        st.success(f"✅ Modèle retenu : {best_row['Modèle']}")
-
-        # Matrice de confusion
+        # Matrice de confusion pour le meilleur modèle
+        best_row = results_df.loc[results_df["AUC-ROC"].idxmax()]
         best_model_final = models[best_row["Modèle"]]
-        y_proba_best = best_model_final.predict_proba(X_scaled)[:,1]
+        y_proba_best = best_model_final.predict_proba(X)[:,1]
         y_pred_best = (y_proba_best >= best_row["Seuil optimal"]).astype(int)
 
         cm = confusion_matrix(y, y_pred_best)
@@ -91,18 +151,6 @@ def show_classification():
         ax.set_ylabel("Réel")
         ax.set_title(f"Matrice de confusion - {best_row['Modèle']}")
         st.pyplot(fig)
-
-        # Courbe ROC
-        fpr, tpr, _ = roc_curve(y, y_proba_best)
-        roc_auc = roc_auc_score(y, y_proba_best)
-        fig2, ax2 = plt.subplots()
-        ax2.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.3f})')
-        ax2.plot([0,1],[0,1], color='navy', lw=2, linestyle='--')
-        ax2.set_xlabel("Taux de faux positifs (1-Spécificité)")
-        ax2.set_ylabel("Taux de vrais positifs (Sensibilité)")
-        ax2.set_title(f"Courbe ROC - {best_row['Modèle']}")
-        ax2.legend(loc="lower right")
-        st.pyplot(fig2)
 
     # --- Onglet 2 : Variables importantes ---
     with tabs[1]:
@@ -123,41 +171,36 @@ def show_classification():
     with tabs[2]:
         st.subheader("Méthodologie utilisée")
         st.markdown("""
-        1. Prétraitement et sélection des variables
-        2. Encodage des variables qualitatives
-        3. Standardisation des quantitatives
-        4. Entraînement des modèles
-        5. Évaluation : Accuracy, Precision, Recall, F1-Score, AUC-ROC
-        6. Comparaison et choix du meilleur modèle
+        1. Prétraitement des données : nettoyage et sélection des variables pertinentes.
+        2. Encodage des variables qualitatives et binaires.
+        3. Standardisation via StandardScaler.
+        4. SMOTETomek pour équilibrage des classes.
+        5. Division train/validation/test.
+        6. Entraînement des modèles : Random Forest, Decision Tree, SVM, LightGBM.
+        7. Evaluation : Accuracy, Precision, Recall, F1-Score, AUC-ROC.
         """)
 
     # --- Onglet 4 : Simulateur ---
     with tabs[3]:
         st.subheader("Simulateur de prédiction")
-        st.markdown("Entrez les valeurs pour prédire l'évolution clinique")
+        st.info("Entrez les caractéristiques du patient pour obtenir une prédiction d'évolution.")
 
+        # Exemple : saisie utilisateur
         user_input = {}
-        for feat in features:
-            if df_selected[feat].nunique() == 2:  # variable binaire
-                user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
-            else:
-                min_val = float(df_selected[feat].min())
-                max_val = float(df_selected[feat].max())
-                mean_val = float(df_selected[feat].mean())
-                user_input[feat] = st.number_input(feat, min_value=min_val, max_value=max_val, value=mean_val)
+        for var in features:
+            user_input[var] = st.number_input(var, value=0.0)
 
-        if st.button("Prédire l'évolution"):
-            X_new = pd.DataFrame([user_input])
-            # Ajouter les colonnes manquantes et réordonner
-            for col in features:
-                if col not in X_new.columns:
-                    X_new[col] = 0
-            X_new = X_new[features].astype(float)
-            # Standardisation
-            quantitative_vars = [c for c in X_new.columns if c in df_selected.select_dtypes(include=np.number).columns]
-            X_new[quantitative_vars] = scaler.transform(X_new[quantitative_vars])
-            # Prédiction
-            y_new_proba = best_model.predict_proba(X_new)[:,1]
-            y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
-            st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
-            st.write("**Prédiction finale :**", "Complications" if y_new_pred[0]==1 else "Favorable")
+        new_data = pd.DataFrame([user_input])
+        # Standardiser les variables quantitatives
+        new_data[quantitative_vars] = scaler.transform(new_data[quantitative_vars])
+        # Ajouter les colonnes manquantes
+        for col in features:
+            if col not in new_data.columns:
+                new_data[col] = 0
+        new_data = new_data[features]
+
+        pred_proba = best_model.predict_proba(new_data)[:,1]
+        pred_class = (pred_proba >= 0.56).astype(int)
+
+        st.write("Probabilité de complication :", pred_proba[0])
+        st.write("Classe prédite :", "Complications" if pred_class[0]==1 else "Favorable")
