@@ -1,193 +1,198 @@
-# classification.py
-import streamlit as st
+# ================================
+# 1️⃣ Imports
+# ================================
 import pandas as pd
 import numpy as np
+import streamlit as st
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
 from imblearn.combine import SMOTETomek
+import plotly.graph_objects as go
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
-import matplotlib.pyplot as plt
 import seaborn as sns
+import matplotlib.pyplot as plt
 
-def show_classification():
-    st.title("Analyse et Classification des données")
+# ================================
+# 2️⃣ Chargement des données
+# ================================
+@st.cache_data
+def load_data(path):
+    df = pd.read_excel(path)
+    return df
 
-    # ================================
-    # Chargement des données et prétraitement
-    # ================================
-    df = pd.read_excel("fichier_nettoye.xlsx")
+df = load_data("fichier_nettoye.xlsx")
 
-    variables_selection = [
-        'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
-        "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
-        'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
-        'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
-        "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
-        'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
-        'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
-        'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
-        'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
-        "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
-        'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
-        'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
-    ]
-    df_selected = df[variables_selection].copy()
+# ================================
+# 3️⃣ Variables sélectionnées
+# ================================
+variables_selection = [
+    'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+    "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+    'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+    'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+    "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+    'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+    'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+    'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+    'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+    "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+    'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+    'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+]
 
-    # Encodage
-    binary_mappings = {
-        'Pâleur': {'OUI':1, 'NON':0},
-        'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
-        'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
-        'Splénomégalie': {'OUI':1, 'NON':0},
-        'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
-        'Parents Salariés': {'OUI':1, 'NON':0},
-        'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
-        'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
-        'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
-        'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+df_selected = df[variables_selection].copy()
+
+# ================================
+# 4️⃣ Encodage
+# ================================
+binary_mappings = {
+    'Pâleur': {'OUI':1, 'NON':0},
+    'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
+    'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
+    'Splénomégalie': {'OUI':1, 'NON':0},
+    'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
+    'Parents Salariés': {'OUI':1, 'NON':0},
+    'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
+    'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
+    'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
+    'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+}
+df_selected.replace(binary_mappings, inplace=True)
+
+ordinal_mappings = {
+    'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
+    "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
+}
+df_selected.replace(ordinal_mappings, inplace=True)
+
+df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
+
+# ================================
+# 5️⃣ Standardisation
+# ================================
+quantitative_vars = [
+    'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
+    'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
+    'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
+    'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
+    "Nbre d'hospitalisations entre 2017 et 2023",
+    'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
+    'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
+]
+
+scaler = StandardScaler()
+df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
+
+# ================================
+# 6️⃣ Variable cible
+# ================================
+df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+X = df_selected.drop(['Evolution', 'Evolution_Cible'], axis=1)
+y = df_selected['Evolution_Cible']
+
+# ================================
+# 7️⃣ SMOTETomek
+# ================================
+smt = SMOTETomek(random_state=42)
+X_res, y_res = smt.fit_resample(X, y)
+
+# ================================
+# 8️⃣ Division train/val/test
+# ================================
+X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
+X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
+
+# ================================
+# 9️⃣ Définition des modèles
+# ================================
+models = {
+    "Decision Tree": DecisionTreeClassifier(random_state=42),
+    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+    "SVM": SVC(probability=True, random_state=42),
+    "LightGBM": lgb.LGBMClassifier(objective='binary', learning_rate=0.05, num_leaves=31, n_estimators=500, random_state=42)
+}
+
+# ================================
+# 🔟 Entraînement & évaluation
+# ================================
+results = {}
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    
+    y_val_proba = model.predict_proba(X_val)[:,1]
+    fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
+    optimal_threshold = thresholds[np.argmax(tpr - fpr)]
+    
+    y_test_proba = model.predict_proba(X_test)[:,1]
+    y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
+    
+    cm = confusion_matrix(y_test, y_test_pred)
+    
+    results[name] = {
+        "Model": model,
+        "Confusion Matrix": cm,
+        "Classification Report": classification_report(y_test, y_test_pred, output_dict=True),
+        "AUC-ROC": roc_auc_score(y_test, y_test_proba),
+        "Optimal Threshold": optimal_threshold
     }
-    df_selected.replace(binary_mappings, inplace=True)
 
-    ordinal_mappings = {
-        'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
-        "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
-    }
-    df_selected.replace(ordinal_mappings, inplace=True)
+# ================================
+# 1️⃣1️⃣ Comparaison des modèles (Toutes les métriques)
+# ================================
+summary_metrics = []
+for name, res in results.items():
+    report = res['Classification Report']
+    summary_metrics.append({
+        "Modèle": name,
+        "Accuracy": report['accuracy'],
+        "Precision": report['macro avg']['precision'],
+        "Recall": report['macro avg']['recall'],
+        "F1-Score": report['macro avg']['f1-score'],
+        "AUC-ROC": res['AUC-ROC']
+    })
 
-    df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
+summary_df = pd.DataFrame(summary_metrics)
 
-    # Standardisation
-    quantitative_vars = [
-        'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
-        'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
-        'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
-        'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
-        "Nbre d'hospitalisations entre 2017 et 2023",
-        'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
-        'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
-    ]
-    scaler = StandardScaler()
-    df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
+# Choix du meilleur modèle basé sur toutes les métriques
+summary_df["Score_Global"] = summary_df[["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]].mean(axis=1)
+best_model_name = summary_df.sort_values(by="Score_Global", ascending=False).iloc[0]["Modèle"]
+best_model_res = results[best_model_name]
 
-    df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
-    X = df_selected.drop(['Evolution','Evolution_Cible'], axis=1)
-    y = df_selected['Evolution_Cible']
+st.subheader("Comparaison des modèles")
+st.dataframe(summary_df.sort_values(by="Score_Global", ascending=False))
 
-    # SMOTE
-    smt = SMOTETomek(random_state=42)
-    X_res, y_res = smt.fit_resample(X, y)
+# ================================
+# 1️⃣2️⃣ Graphique interactif avec Plotly
+# ================================
+import plotly.graph_objects as go
 
-    # Split train/val/test
-    X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
-    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
+fig = go.Figure()
+metrics_to_plot = ["Accuracy","Precision","AUC-ROC"]
+for metric in metrics_to_plot:
+    fig.add_trace(go.Bar(x=summary_df["Modèle"], y=summary_df[metric], name=metric))
+fig.update_layout(
+    barmode='group', title="Comparaison des modèles selon Accuracy, Precision et AUC",
+    yaxis=dict(range=[0,1]), xaxis_title="Modèles", yaxis_title="Valeurs"
+)
+st.plotly_chart(fig)
 
-    # ================================
-    # Onglets
-    # ================================
-    onglets = st.tabs(["Méthodologie & Prétraitement", "Comparaison des modèles", "Meilleur modèle"])
+# ================================
+# 1️⃣3️⃣ Meilleur modèle : matrice de confusion et AUC
+# ================================
+st.subheader(f"Meilleur modèle selon toutes les métriques : {best_model_name}")
+st.write("Matrice de confusion :")
+st.write(best_model_res["Confusion Matrix"])
 
-    # ----------------
-    # Onglet 1 : Méthodologie & Prétraitement
-    # ----------------
-    with onglets[0]:
-        st.subheader("Méthodologie et étapes réalisées")
-        st.markdown("""
-        1. **Sélection des variables** pertinentes pour la prédiction.
-        2. **Encodage des variables catégorielles** :  
-           - Binaire (OUI/NON → 1/0)  
-           - Ordinal pour niveau d'urgence et niveau d'instruction
-        3. **One-Hot Encoding** pour certaines variables catégorielles comme le mois et le diagnostic.
-        4. **Standardisation** des variables quantitatives pour uniformiser les échelles.
-        5. **Création de la variable cible** `Evolution_Cible` (0 = Favorable, 1 = Complications).
-        6. **Rééquilibrage** des classes avec SMOTETomek.
-        7. **Division des données** en ensembles train, validation et test.
-        """)
-        st.subheader("Aperçu des données après prétraitement")
-        st.dataframe(df_selected.head())
-        st.text(f"Taille du dataset après SMOTE : {X_res.shape}")
-        st.text(f"Distribution de la cible :\n{pd.Series(y_res).value_counts()}")
-
-    # ----------------
-    # Onglet 2 : Comparaison des modèles
-    # ----------------
-    with onglets[1]:
-        models = {
-            "Decision Tree": DecisionTreeClassifier(random_state=42),
-            "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
-            "SVM": SVC(probability=True, random_state=42),
-            "LightGBM": lgb.LGBMClassifier(objective='binary', learning_rate=0.05, num_leaves=31, n_estimators=500, random_state=42)
-        }
-
-        results = {}
-        summary_metrics = []
-
-        for name, model in models.items():
-            model.fit(X_train, y_train)
-            y_val_proba = model.predict_proba(X_val)[:,1]
-            fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
-            optimal_threshold = thresholds[np.argmax(tpr - fpr)]
-            y_test_proba = model.predict_proba(X_test)[:,1]
-            y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
-
-            auc = roc_auc_score(y_test, y_test_proba)
-            report = classification_report(y_test, y_test_pred, output_dict=True)
-
-            results[name] = {
-                "model": model,
-                "Optimal Threshold": optimal_threshold,
-                "y_test": y_test,
-                "y_test_pred": y_test_pred,
-                "y_test_proba": y_test_proba,
-                "F1-score": report['macro avg']['f1-score']
-            }
-
-            summary_metrics.append({
-                "Modèle": name,
-                "Accuracy": round(report['accuracy'],3),
-                "Precision": round(report['macro avg']['precision'],3),
-                "Recall": round(report['macro avg']['recall'],3),
-                "F1-Score": round(report['macro avg']['f1-score'],3),
-                "AUC-ROC": round(auc,3),
-            })
-
-        summary_df = pd.DataFrame(summary_metrics).sort_values(by="F1-Score", ascending=False)
-        st.subheader("Comparaison des modèles selon leurs métriques")
-        st.dataframe(summary_df)
-
-        st.subheader("Graphique AUC-ROC")
-        fig, ax = plt.subplots(figsize=(10,5))
-        sns.barplot(x="Modèle", y="AUC-ROC", data=summary_df, ax=ax)
-        ax.set_ylim(0,1)
-        st.pyplot(fig)
-
-    # ----------------
-    # Onglet 3 : Meilleur modèle
-    # ----------------
-    with onglets[2]:
-        best_model_name = summary_df.iloc[0]["Modèle"]
-        best = results[best_model_name]
-        st.subheader(f"Meilleur modèle basé sur le F1-Score : {best_model_name}")
-
-        # Matrice de confusion
-        cm = confusion_matrix(best["y_test"], best["y_test_pred"])
-        fig, ax = plt.subplots()
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False, ax=ax)
-        ax.set_xlabel("Prédit")
-        ax.set_ylabel("Réel")
-        ax.set_title("Matrice de confusion")
-        st.pyplot(fig)
-
-        # Courbe ROC
-        fpr, tpr, _ = roc_curve(best["y_test"], best["y_test_proba"])
-        fig, ax = plt.subplots()
-        ax.plot(fpr, tpr, label=f"AUC = {roc_auc_score(best['y_test'], best['y_test_proba']):.3f}")
-        ax.plot([0,1],[0,1],'--', color='gray')
-        ax.set_xlabel("FPR")
-        ax.set_ylabel("TPR")
-        ax.set_title("Courbe ROC")
-        ax.legend()
-        st.pyplot(fig)
+# AUC-ROC
+y_test_proba = best_model_res["Model"].predict_proba(X_test)[:,1]
+fpr, tpr, _ = roc_curve(y_test, y_test_proba)
+st.write("Courbe AUC-ROC :")
+fig_auc = go.Figure()
+fig_auc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC'))
+fig_auc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', line=dict(dash='dash'), name='Random'))
+fig_auc.update_layout(xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
+st.plotly_chart(fig_auc)
