@@ -11,6 +11,21 @@ def show_deployment():
     model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
     scaler = joblib.load("scaler.pkl")             # Scaler utilisé pour les variables quantitatives
 
+    # 🔹 Liste fixe des diagnostics (à remplacer par tes vraies valeurs)
+    diagnostic_categories = [
+        "Drépanocytose homozygote (SS)",
+        "Drépanocytose hétérozygote composite (SC)",
+        "Thalasso-drépanocytose (Sβ-thal)",
+        "Forme asymptomatique",
+        "Autres"
+    ]
+
+    # 🔹 Liste fixe des mois (si tu veux les afficher sous forme lisible)
+    mois_categories = [
+        "Janvier","Février","Mars","Avril","Mai","Juin",
+        "Juillet","Août","Septembre","Octobre","Novembre","Décembre"
+    ]
+
     # Variables quantitatives
     quantitative_vars = [
         'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
@@ -33,11 +48,6 @@ def show_deployment():
     # NiveauUrgence: 1=Urgence1, 2=Urgence2, 3=Urgence3, 4=Urgence4, 5=Urgence5, 6=Urgence6
     # Niveau d'instruction scolarité: 0=NON, 1=Maternelle, 2=Elémentaire, 3=Secondaire, 4=Enseignement Supérieur
     ordinal_vars = ["NiveauUrgence", "Niveau d'instruction scolarité"]
-
-    # Variables catégorielles encodées en dummies
-    diagnostic_categories = ['TypeA', 'TypeB', 'TypeC']  # ⚠️ Remplace par les vraies modalités de "Diagnostic Catégorisé"
-    mois_categories = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet',
-                       'Août','Septembre','Octobre','Novembre','Décembre']
 
     st.markdown("### Formulaire de saisie des données du patient")
 
@@ -63,7 +73,7 @@ def show_deployment():
         submitted = st.form_submit_button("Prédire")
 
     if submitted:
-        # Préparer les données sous forme de DataFrame
+        # Préparer les données
         input_dict = {**quantitative_inputs, **binary_inputs,
                       'NiveauUrgence': niveau_urgence,
                       "Niveau d'instruction scolarité": niveau_instruction,
@@ -75,24 +85,22 @@ def show_deployment():
         # Encodage dummies pour Diagnostic et Mois
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"], drop_first=True)
 
-        # Vérifier que toutes les colonnes attendues par le modèle sont présentes
-        # (par exemple, lors de l'entraînement, X.columns a été utilisé)
+        # Vérifier colonnes attendues
         model_features = model.feature_names_in_
         for col in model_features:
             if col not in input_df.columns:
-                input_df[col] = 0  # Ajouter les colonnes manquantes avec 0
+                input_df[col] = 0
 
-        # Réordonner les colonnes
+        # Réordonner
         input_df = input_df[model_features]
 
-        # Standardisation des variables quantitatives
+        # Standardisation
         input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
 
         # Prédiction
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        # Résultat
         st.subheader("Résultat de la prédiction")
         if pred_class == 0:
             st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
