@@ -9,7 +9,7 @@ import pickle
 # ================================
 # 1️⃣ Charger le modèle, le scaler et les features
 # ================================
-best_model = pickle.load(open("best_model.pkl", "rb"))
+best_model = pickle.load(open("random_forest_model.pkl", "rb"))
 scaler = pickle.load(open("scaler.pkl", "rb"))
 features = pickle.load(open("features.pkl", "rb"))  # Liste des colonnes du modèle
 
@@ -100,3 +100,4 @@ if st.button("Prédire l'évolution"):
     
     st.write(f"Probabilité de complications : {proba:.2f}")
     st.write(f"Prédiction finale : {'Complications' if prediction==1 else 'Favorable'}")
+
