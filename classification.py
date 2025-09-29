@@ -10,6 +10,7 @@ from sklearn.metrics import confusion_matrix, classification_report, roc_auc_sco
 from imblearn.combine import SMOTETomek
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -148,9 +149,28 @@ def show_classification():
     # Onglet 1 - Comparaison des modèles
     # ================================
     with tab1:
-        st.dataframe(summary_df.drop('Mean',axis=1))
+        st.dataframe(summary_df.drop('Mean', axis=1))
+        
+        # Graphique comparatif AUC + Precision
         fig = px.bar(summary_df, x="Modèle", y=["AUC","Precision"], barmode='group', title="Comparaison des modèles")
         st.plotly_chart(fig)
+
+        # Heatmap des métriques
+        metrics_heatmap = summary_df.set_index('Modèle')[['Accuracy','Precision','Recall','F1','AUC']]
+        z = metrics_heatmap.values
+        x = metrics_heatmap.columns.tolist()
+        y = metrics_heatmap.index.tolist()
+        heatmap_fig = ff.create_annotated_heatmap(
+            z=np.round(z,3),
+            x=x,
+            y=y,
+            colorscale='Viridis',
+            showscale=True,
+            reversescale=True
+        )
+        heatmap_fig.update_layout(title='Heatmap des métriques des modèles', width=700, height=500)
+        st.plotly_chart(heatmap_fig)
+
         st.write("Matrice de confusion du meilleur modèle :")
         st.write(results[best_name]["CM"])
 
