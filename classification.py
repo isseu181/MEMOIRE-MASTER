@@ -1,14 +1,13 @@
 # ================================
-# classification.py
+# classification.py pour Streamlit
 # ================================
+import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score, roc_curve
 from imblearn.combine import SMOTETomek
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
@@ -16,10 +15,14 @@ from sklearn.svm import SVC
 import lightgbm as lgb
 
 def show_classification():
+    st.title("Classification Supervisée - Analyse des Modèles")
+
     # ================================
     # 1️⃣ Chargement des données
     # ================================
     df = pd.read_excel("fichier_nettoye.xlsx")
+    st.subheader("Aperçu des données")
+    st.dataframe(df.head())
 
     # ================================
     # 2️⃣ Variables sélectionnées
@@ -99,6 +102,9 @@ def show_classification():
     X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
     X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
 
+    st.subheader("Taille des ensembles")
+    st.write(f"Train : {X_train.shape}, Validation : {X_val.shape}, Test : {X_test.shape}")
+
     # ================================
     # 8️⃣ Modèles
     # ================================
@@ -113,23 +119,17 @@ def show_classification():
     # 9️⃣ Entraînement & évaluation
     # ================================
     results = {}
-
     for name, model in models.items():
         model.fit(X_train, y_train)
 
-        # Seuil optimal sur validation
         y_val_proba = model.predict_proba(X_val)[:,1]
         fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
         optimal_threshold = thresholds[np.argmax(tpr - fpr)]
 
-        # Prédictions sur test
         y_test_proba = model.predict_proba(X_test)[:,1]
         y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
 
-        # Matrice de confusion
         cm = confusion_matrix(y_test, y_test_pred)
-
-        # Rapport classification
         report = classification_report(y_test, y_test_pred, output_dict=True)
         auc = roc_auc_score(y_test, y_test_proba)
 
@@ -137,7 +137,8 @@ def show_classification():
             "Confusion Matrix": cm,
             "Classification Report": report,
             "AUC-ROC": auc,
-            "Optimal Threshold": optimal_threshold
+            "Optimal Threshold": optimal_threshold,
+            "Model Object": model
         }
 
     # ================================
@@ -154,22 +155,53 @@ def show_classification():
             "F1-Score": round(report['macro avg']['f1-score'],3),
             "AUC-ROC": round(res['AUC-ROC'],3)
         })
-
     summary_df = pd.DataFrame(summary_metrics)
 
     # ================================
-    # 11️⃣ Graphe comparatif AUC + Precision
+    # 11️⃣ Graphe comparatif Plotly
     # ================================
     fig = px.bar(summary_df, x="Modèle", y=["AUC-ROC","Precision"], barmode='group',
                  title="Comparaison des modèles selon AUC et Precision")
-    fig.show()
+    st.plotly_chart(fig)
 
     # ================================
-    # 12️⃣ Choix du meilleur modèle (toutes les métriques)
+    # 12️⃣ Meilleur modèle selon toutes les métriques
     # ================================
-    best_model_name = summary_df.set_index("Modèle").mean(axis=1).idxmax()
-    print(f"Meilleur modèle : {best_model_name}")
-    print("Matrice de confusion :")
-    print(results[best_model_name]["Confusion Matrix"])
-    print("AUC-ROC :", results[best_model_name]["AUC-ROC"])
+    # Moyenne des métriques pour choisir le meilleur modèle
+    summary_df['Mean Metric'] = summary_df[['Accuracy','Precision','Recall','F1-Score','AUC-ROC']].mean(axis=1)
+    best_model_name = summary_df.loc[summary_df['Mean Metric'].idxmax(), 'Modèle']
+    st.subheader(f"Meilleur modèle : {best_model_name}")
+    st.write("Matrice de confusion du meilleur modèle :")
+    st.write(results[best_model_name]["Confusion Matrix"])
+    st.write("AUC-ROC :", results[best_model_name]["AUC-ROC"])
 
+    # ================================
+    # 13️⃣ Méthodologie
+    # ================================
+    st.subheader("Méthodologie et étapes")
+    st.markdown("""
+    - Chargement et exploration des données brutes.
+    - Sélection des variables pertinentes pour l'analyse.
+    - Encodage des variables binaires et ordinales.
+    - Création de variables factices pour les catégories.
+    - Standardisation des variables quantitatives.
+    - Définition de la variable cible et encodage.
+    - Gestion du déséquilibre avec SMOTETomek.
+    - Division en ensembles train/validation/test.
+    - Définition et entraînement de plusieurs modèles supervisés.
+    - Évaluation des modèles sur plusieurs métriques (Accuracy, Precision, Recall, F1, AUC).
+    - Comparaison visuelle des modèles.
+    - Sélection du meilleur modèle basé sur l’ensemble des métriques.
+    """)
+
+    # ================================
+    # 14️⃣ Variables importantes pour le meilleur modèle (si applicable)
+    # ================================
+    st.subheader("Variables importantes du meilleur modèle")
+    best_model = results[best_model_name]["Model Object"]
+    if hasattr(best_model, "feature_importances_"):
+        importances = pd.Series(best_model.feature_importances_, index=X.columns)
+        importances = importances.sort_values(ascending=False).head(15)
+        st.bar_chart(importances)
+    else:
+        st.write("Pas de variable importance disponible pour ce modèle.")
