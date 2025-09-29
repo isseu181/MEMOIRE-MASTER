@@ -29,11 +29,13 @@ def show_classification():
     features = joblib.load("features.pkl")
 
     df_selected = df.copy()
-    # S'assurer que X a exactement les colonnes du scaler
-    X = df_selected.reindex(columns=features, fill_value=0).astype(float)
-    y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+    X = df_selected.reindex(columns=features, fill_value=0)
 
-    # Transformation avec scaler
+    # Conversion uniquement des colonnes numériques pour le scaler
+    numeric_cols = X.select_dtypes(include=[np.number]).columns
+    X[numeric_cols] = X[numeric_cols].astype(float)
+
+    y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
     X_scaled = scaler.transform(X)
 
     # ================================
@@ -154,7 +156,10 @@ def show_classification():
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
-            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0).astype(float))
+            # Conversion uniquement des colonnes numériques
+            numeric_cols_new = X_new.select_dtypes(include=[np.number]).columns
+            X_new[numeric_cols_new] = X_new[numeric_cols_new].astype(float)
+            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0))
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
