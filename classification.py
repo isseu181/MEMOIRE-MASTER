@@ -29,13 +29,15 @@ def show_classification():
     features = joblib.load("features.pkl")
 
     df_selected = df.copy()
-    X = df_selected.reindex(columns=features, fill_value=0)
 
-    # Conversion uniquement des colonnes numériques pour le scaler
+    # Réaligner les colonnes avec celles du modèle
+    X = df_selected.reindex(columns=features, fill_value=0)
     numeric_cols = X.select_dtypes(include=[np.number]).columns
     X[numeric_cols] = X[numeric_cols].astype(float)
 
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+
+    # Appliquer le scaler
     X_scaled = scaler.transform(X)
 
     # ================================
@@ -47,7 +49,6 @@ def show_classification():
     with tabs[0]:
         st.subheader("Comparaison des modèles et métriques")
 
-        # Définition des modèles
         models = {
             "Decision Tree": DecisionTreeClassifier(random_state=42),
             "Random Forest": best_model,
@@ -78,7 +79,7 @@ def show_classification():
         results_df = pd.DataFrame(results)
         st.dataframe(results_df)
 
-        # Détermination du meilleur modèle selon moyenne métriques
+        # Déterminer le meilleur modèle selon moyenne métriques
         metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
         results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
         best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
@@ -156,10 +157,8 @@ def show_classification():
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
-            # Conversion uniquement des colonnes numériques
-            numeric_cols_new = X_new.select_dtypes(include=[np.number]).columns
-            X_new[numeric_cols_new] = X_new[numeric_cols_new].astype(float)
-            X_new_scaled = scaler.transform(X_new.reindex(columns=features, fill_value=0))
+            X_new = X_new.reindex(columns=features, fill_value=0)
+            X_new_scaled = scaler.transform(X_new)
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
