@@ -55,147 +55,121 @@ def show_eda():
         return
 
     # ============================
-    # 1️⃣ Identité
+    # Onglets Streamlit
     # ============================
-    if 'Identite' in feuilles:
-        identite = feuilles['Identite']
-        identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
-        st.header("1️⃣ Identité des patients")
-        st.write("Nombre total de patients:", len(identite))
+    onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs"])
 
-        # Sexe
-        if 'Sexe' in identite.columns:
-            sexe_counts = identite['Sexe'].value_counts()
-            fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                         title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
-            fig.update_traces(textinfo='percent+label', pull=0.05)
+    # ============================
+    # Onglet 1 : Démographique
+    # ============================
+    with onglets[0]:
+        st.header("1️⃣ Informations démographiques")
+        if 'Identite' in feuilles:
+            identite = feuilles['Identite']
+            identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
+            st.write("Nombre total de patients:", len(identite))
+
+            # Sexe
+            if 'Sexe' in identite.columns:
+                sexe_counts = identite['Sexe'].value_counts()
+                fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
+                             title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
+                fig.update_traces(textinfo='percent+label', pull=0.05)
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Origine géographique
+            if 'Origine Géographique' in identite.columns:
+                origine_counts = identite['Origine Géographique'].value_counts()
+                fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
+                             title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
+                fig.update_traces(textinfo='percent+label', pull=0.05)
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Scolarité
+            if "Niveau d'instruction scolarité" in identite.columns:
+                scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
+                fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
+                             title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
+                fig.update_traces(textinfo='percent+label', pull=0.05)
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Âge
+            age_col = "Âge du debut d etude en mois (en janvier 2023)"
+            if age_col in identite.columns:
+                identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
+                fig = px.histogram(identite, x=age_col, nbins=15,
+                                   title="Répartition des âges à l’inclusion",
+                                   color_discrete_sequence=["#2E86C1"])
+                fig.update_traces(texttemplate="%{y}", textposition="outside")
+                st.plotly_chart(fig, use_container_width=True)
+
+    # ============================
+    # Onglet 2 : Clinique
+    # ============================
+    with onglets[1]:
+        st.header("2️⃣ Données cliniques et consultations d'urgence")
+        symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
+        for i in range(1,7):
+            nom = f'Urgence{i}'
+            if nom in feuilles:
+                df_urg = feuilles[nom]
+                df_urg = convertir_df_oui_non(df_urg)
+
+                date_col_candidates = [c for c in df_urg.columns if "date" in c.lower()]
+                if date_col_candidates:
+                    df_urg = df_urg[df_urg[date_col_candidates[0]].notna()]
+
+                st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
+
+                data_symptomes = {}
+                for s in symptomes:
+                    if s in df_urg.columns and not df_urg[s].dropna().empty:
+                        counts = df_urg[s].value_counts().to_dict()
+                        data_symptomes[s] = counts
+                if data_symptomes:
+                    st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
+
+    # ============================
+    # Onglet 3 : Temporel
+    # ============================
+    with onglets[2]:
+        st.header("3️⃣ Répartition temporelle des urgences")
+        toutes_dates = concat_dates_urgences(feuilles)
+        if not toutes_dates.empty:
+            repartition_mensuelle = toutes_dates.dt.month.value_counts().sort_index()
+            mois_noms = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',
+                         7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'}
+
+            repartition_df = pd.DataFrame({
+                'Mois':[mois_noms[m] for m in repartition_mensuelle.index],
+                'Nombre de consultations': repartition_mensuelle.values
+            })
+            fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
+                          title="Répartition mensuelle des urgences drépanocytaires",
+                          markers=True)
             st.plotly_chart(fig, use_container_width=True)
 
-        # Origine géographique
-        if 'Origine Géographique' in identite.columns:
-            origine_counts = identite['Origine Géographique'].value_counts()
-            fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                         title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
-            fig.update_traces(textinfo='percent+label', pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Scolarité (camembert)
-        if "Niveau d'instruction scolarité" in identite.columns:
-            scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
-            fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
-                         title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig.update_traces(textinfo='percent+label', pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Âge
-        age_col = "Âge du debut d etude en mois (en janvier 2023)"
-        if age_col in identite.columns:
-            identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
-            fig = px.histogram(identite, x=age_col, nbins=15,
-                               title="Répartition des âges à l’inclusion",
-                               color_discrete_sequence=["#2E86C1"])
-            fig.update_traces(texttemplate="%{y}", textposition="outside")
-            st.plotly_chart(fig, use_container_width=True)
-
     # ============================
-    # 2️⃣ Drépanocytose
+    # Onglet 4 : Biomarqueurs
     # ============================
-    if 'Drépano' in feuilles:
-        drepano = feuilles['Drépano']
-        drepano = convertir_df_oui_non(drepano)
-
-        if 'Type de drépanocytose' in drepano.columns:
-            st.header("2️⃣ Type de drépanocytose et paramètres biologiques")
-            type_counts = drepano['Type de drépanocytose'].value_counts()
-            st.table(type_counts)
-
-        bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-                    "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-
-        st.subheader("📌 Paramètres biologiques (statistiques descriptives)")
-        stats_data = {}
-        for col in bio_cols:
-            if col in drepano.columns:
-                drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
-                stats_data[col] = {
-                    "Moyenne": drepano[col].mean(),
-                    "Médiane": drepano[col].median(),
-                    "Min": drepano[col].min(),
-                    "Max": drepano[col].max()
-                }
-
-        if stats_data:
-            stats_df = pd.DataFrame(stats_data).T.round(2)
-            st.table(stats_df)
-
-    # ============================
-    # 4️⃣ Consultations d'urgence
-    # ============================
-    st.header("4️⃣ Consultations d'urgence")
-    symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
-
-    for i in range(1,7):
-        nom = f'Urgence{i}'
-        if nom in feuilles:
-            df_urg = feuilles[nom]
-            df_urg = convertir_df_oui_non(df_urg)
-
-            date_col_candidates = [c for c in df_urg.columns if "date" in c.lower()]
-            if date_col_candidates:
-                df_urg = df_urg[df_urg[date_col_candidates[0]].notna()]
-
-            st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
-
-            data_symptomes = {}
-            for s in symptomes:
-                if s in df_urg.columns and not df_urg[s].dropna().empty:
-                    counts = df_urg[s].value_counts().to_dict()
-                    data_symptomes[s] = counts
-            if data_symptomes:
-                st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
-
-    # ============================
-    # 5️⃣ Répartition mensuelle des urgences (courbe)
-    # ============================
-    st.header("5️⃣ Répartition mensuelle des urgences")
-    toutes_dates = concat_dates_urgences(feuilles)
-    if not toutes_dates.empty:
-        repartition_mensuelle = toutes_dates.dt.month.value_counts().sort_index()
-        mois_noms = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',
-                     7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'}
-
-        repartition_df = pd.DataFrame({
-            'Mois':[mois_noms[m] for m in repartition_mensuelle.index],
-            'Nombre de consultations': repartition_mensuelle.values
-        })
-        fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
-                      title="Répartition mensuelle des urgences drépanocytaires",
-                      markers=True)
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ============================
-    # 6️⃣ Analyse binaire : Evolution vs variables
-    # ============================
-    st.header("6️⃣ Analyse binaire : Evolution vs autres variables")
-    try:
-        df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
-        cible = "Evolution"
-        if cible in df_nettoye.columns:
-            variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
-                         "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
-
-            for var in variables:
-                if var in df_nettoye.columns:
-                    st.subheader(f"{var} vs {cible}")
-
-                    if df_nettoye[var].dtype=="object":
-                        cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
-                        st.dataframe(cross_tab.round(2))
-                        fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
-                                     title=f"{var} vs {cible}")
-                        st.plotly_chart(fig, use_container_width=True)
-                    else:
-                        stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
-                        st.table(stats_group)
-    except FileNotFoundError:
-        st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
+    with onglets[3]:
+        st.header("4️⃣ Biomarqueurs")
+        try:
+            df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
+            bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
+                        "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+            stats_data = {}
+            for col in bio_cols:
+                if col in df_nettoye.columns:
+                    df_nettoye[col] = pd.to_numeric(df_nettoye[col], errors='coerce')
+                    stats_data[col] = {
+                        "Moyenne": df_nettoye[col].mean(),
+                        "Médiane": df_nettoye[col].median(),
+                        "Min": df_nettoye[col].min(),
+                        "Max": df_nettoye[col].max()
+                    }
+            if stats_data:
+                stats_df = pd.DataFrame(stats_data).T.round(2)
+                st.table(stats_df)
+        except FileNotFoundError:
+            st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
