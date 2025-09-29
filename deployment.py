@@ -1,108 +1,102 @@
-# deployment.py
+# ================================
+# deploiement.py
+# ================================
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
+import pickle
 
-def show_deployment():
-    # -------------------------------
-    # Charger le modèle et le scaler
-    # -------------------------------
-    model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
-    scaler = joblib.load("scaler.pkl")             # Scaler utilisé pour les variables quantitatives
+# ================================
+# 1️⃣ Charger le modèle, le scaler et les features
+# ================================
+best_model = pickle.load(open("best_model.pkl", "rb"))
+scaler = pickle.load(open("scaler.pkl", "rb"))
+features = pickle.load(open("features.pkl", "rb"))  # Liste des colonnes du modèle
 
-    # 🔹 Liste fixe des diagnostics (à remplacer par tes vraies valeurs)
-    diagnostic_categories = [
-        "Drépanocytose homozygote (SS)",
-        "Drépanocytose hétérozygote composite (SC)",
-        "Thalasso-drépanocytose (Sβ-thal)",
-        "Forme asymptomatique",
-        "Autres"
-    ]
+# ================================
+# 2️⃣ Interface utilisateur
+# ================================
+st.title("Déploiement du modèle - Prédiction de l'évolution")
+st.write("Entrez les valeurs des variables pour prédire l'évolution du patient:")
 
-    # 🔹 Liste fixe des mois (si tu veux les afficher sous forme lisible)
-    mois_categories = [
-        "Janvier","Février","Mars","Avril","Mai","Juin",
-        "Juillet","Août","Septembre","Octobre","Novembre","Décembre"
-    ]
+# Variables quantitatives
+quantitative_vars = [
+    'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
+    'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
+    'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
+    'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
+    "Nbre d'hospitalisations entre 2017 et 2023",
+    'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
+    'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
+]
 
-    # Variables quantitatives
-    quantitative_vars = [
-        'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
-        'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
-        'Nbre de GB (/mm3)','PLT (/mm3)','Nbre de PLT (/mm3)','TCMH (g/dl)',
-        "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
-        'Nbre de transfusion avant 2017','Nbre de transfusion Entre 2017 et 2023',
-        'CRP Si positive (Valeur)',"Taux d'Hb (g/dL)","% d'Hb S","% d'Hb F"
-    ]
+# Variables binaires
+binary_vars = [
+    'Pâleur', 'Souffle systolique fonctionnel', 'Vaccin contre méningocoque', 
+    'Splénomégalie', 'Prophylaxie à la pénicilline', 'Parents Salariés', 
+    'Prise en charge Hospitalisation', 'Radiographie du thorax Oui ou Non', 
+    'Douleur provoquée (Os.Abdomen)', 'Vaccin contre pneumocoque'
+]
 
-    # Variables binaires
-    binary_vars = [
-        'Pâleur','Souffle systolique fonctionnel','Vaccin contre méningocoque',
-        'Splénomégalie','Prophylaxie à la pénicilline','Parents Salariés',
-        'Prise en charge Hospitalisation','Radiographie du thorax Oui ou Non',
-        'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
-    ]
+# Variables ordinales
+ordinal_vars = {
+    'NiveauUrgence': ['Urgence1','Urgence2','Urgence3','Urgence4','Urgence5','Urgence6'],
+    "Niveau d'instruction scolarité": ['Maternelle ','Elémentaire ','Secondaire','Enseignement Supérieur ','NON']
+}
 
-    # Variables ordinales
-    # NiveauUrgence: 1=Urgence1, 2=Urgence2, 3=Urgence3, 4=Urgence4, 5=Urgence5, 6=Urgence6
-    # Niveau d'instruction scolarité: 0=NON, 1=Maternelle, 2=Elémentaire, 3=Secondaire, 4=Enseignement Supérieur
-    ordinal_vars = ["NiveauUrgence", "Niveau d'instruction scolarité"]
+# Variables catégorielles à One-Hot encoder
+categorical_vars = {
+    'Diagnostic Catégorisé': ['Type1','Type2','Type3'],  # Remplacer par vos catégories exactes
+    'Mois': [str(i) for i in range(1,13)]  # Janvier=1, Février=2...
+}
 
-    st.markdown("### Formulaire de saisie des données du patient")
+# Collecte des entrées
+input_data = {}
+for var in quantitative_vars:
+    input_data[var] = st.number_input(var, value=0.0)
 
-    with st.form("patient_form"):
-        st.subheader("Variables quantitatives")
-        quantitative_inputs = {}
-        for var in quantitative_vars:
-            quantitative_inputs[var] = st.number_input(var, value=0.0)
+for var in binary_vars:
+    input_data[var] = st.selectbox(var, ['OUI','NON'])
 
-        st.subheader("Variables binaires (OUI=1, NON=0)")
-        binary_inputs = {}
-        for var in binary_vars:
-            binary_inputs[var] = st.selectbox(var, options=[0,1])
+for var, options in ordinal_vars.items():
+    input_data[var] = st.selectbox(var, options)
 
-        st.subheader("Variables ordinales")
-        niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
-        niveau_instruction = st.selectbox("Niveau d'instruction scolarité (0=NON,1=Maternelle,2=Elémentaire,3=Secondaire,4=Supérieur)", options=[0,1,2,3,4])
+for var, options in categorical_vars.items():
+    input_data[var] = st.selectbox(var, options)
 
-        st.subheader("Variables catégorielles")
-        diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-        mois = st.selectbox("Mois", options=mois_categories)
-
-        submitted = st.form_submit_button("Prédire")
-
-    if submitted:
-        # Préparer les données
-        input_dict = {**quantitative_inputs, **binary_inputs,
-                      'NiveauUrgence': niveau_urgence,
-                      "Niveau d'instruction scolarité": niveau_instruction,
-                      "Diagnostic Catégorisé": diagnostic,
-                      "Mois": mois}
-
-        input_df = pd.DataFrame([input_dict])
-
-        # Encodage dummies pour Diagnostic et Mois
-        input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"], drop_first=True)
-
-        # Vérifier colonnes attendues
-        model_features = model.feature_names_in_
-        for col in model_features:
-            if col not in input_df.columns:
-                input_df[col] = 0
-
-        # Réordonner
-        input_df = input_df[model_features]
-
-        # Standardisation
-        input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
-
-        # Prédiction
-        pred_proba = model.predict_proba(input_df)[:,1][0]
-        pred_class = model.predict(input_df)[0]
-
-        st.subheader("Résultat de la prédiction")
-        if pred_class == 0:
-            st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
-        else:
-            st.error(f"Évolution prévue : **Complications** ⚠️ (Probabilité : {pred_proba:.2f})")
+# Bouton de prédiction
+if st.button("Prédire l'évolution"):
+    df_input = pd.DataFrame([input_data])
+    
+    # Encodage binaire
+    binary_mapping = {'OUI':1, 'NON':0}
+    for var in binary_vars:
+        df_input[var] = df_input[var].map(binary_mapping)
+    
+    # Encodage ordinal
+    df_input['NiveauUrgence'] = df_input['NiveauUrgence'].map({
+        'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6
+    })
+    df_input["Niveau d'instruction scolarité"] = df_input["Niveau d'instruction scolarité"].map({
+        'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0
+    })
+    
+    # One-Hot encoding pour les catégories
+    for var, options in categorical_vars.items():
+        df_input = pd.get_dummies(df_input, columns=[var], prefix=[var])
+    
+    # Ajouter les colonnes manquantes pour correspondre au modèle
+    for col in features:
+        if col not in df_input.columns:
+            df_input[col] = 0
+    df_input = df_input[features]
+    
+    # Standardisation
+    df_input[quantitative_vars] = scaler.transform(df_input[quantitative_vars])
+    
+    # Prédiction
+    proba = best_model.predict_proba(df_input)[:,1][0]
+    prediction = best_model.predict(df_input)[0]
+    
+    st.write(f"Probabilité de complications : {proba:.2f}")
+    st.write(f"Prédiction finale : {'Complications' if prediction==1 else 'Favorable'}")
