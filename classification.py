@@ -118,33 +118,9 @@ def show_classification():
             st.pyplot(fig)
         else:
             st.info("Le modèle sélectionné ne fournit pas d'importance des variables.")
+    from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, roc_curve, confusion_matrix, classification_report
+)
 
-    # --- Onglet 3 : Simulateur ---
-    with tabs[2]:
-        st.subheader("Simulateur de prédiction")
-        st.markdown("Entrez les valeurs des variables pour prédire l'évolution clinique")
-
-        user_input = {}
-        for feat in features:
-            if feat in binary_mappings.keys():
-                user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
-            else:
-                min_val = float(X[feat].min())
-                max_val = float(X[feat].max())
-                mean_val = float(X[feat].mean())
-                user_input[feat] = st.number_input(feat, min_value=min_val, max_value=max_val, value=mean_val)
-
-        if st.button("Prédire l'évolution"):
-            X_new = pd.DataFrame([user_input])
-            # Ajouter colonnes manquantes
-            for col in features:
-                if col not in X_new.columns:
-                    X_new[col] = 0
-            X_new = X_new[features]
-            # Standardiser quantitatives
-            X_new[quantitative_vars] = scaler.transform(X_new[quantitative_vars])
-            y_new_proba = best_model.predict_proba(X_new)[:,1]
-            y_new_pred = (y_new_proba >= threshold).astype(int)
-            st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
-            st.write("**Prédiction finale :**", "Complications" if y_new_pred[0]==1 else "Favorable")
-
+    
