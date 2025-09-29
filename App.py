@@ -60,7 +60,7 @@ elif page == "Déploiement du modèle":
     """)
     import pandas as pd
     try:
-        df_test = pd.read_excel("data/Base_de_donnees_USAD_URGENCES1.xlsx", sheet_name=None)
+        df_test = pd.read_excel("Base_de_donnees_USAD_URGENCES1.xlsx", sheet_name=None)
         st.write("Aperçu des données intégrées :", {k: v.head() for k, v in df_test.items()})
     except Exception as e:
         st.error(f"Impossible de charger la base intégrée : {e}")
