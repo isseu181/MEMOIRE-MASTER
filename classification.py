@@ -1,5 +1,5 @@
 # ================================
-# classification.py 
+# classification.py pour Streamlit avec onglets et résumé global
 # ================================
 import streamlit as st
 import pandas as pd
@@ -111,6 +111,35 @@ def show_classification():
         results[name] = {"CM":cm,"Report":report,"AUC":auc,"Threshold":optimal_threshold,"Model":model}
 
     # ================================
+    # Résumé global
+    # ================================
+    summary = []
+    for name,res in results.items():
+        r = res["Report"]
+        summary.append({
+            "Modèle":name,
+            "Accuracy":round(r['accuracy'],3),
+            "Precision":round(r['macro avg']['precision'],3),
+            "Recall":round(r['macro avg']['recall'],3),
+            "F1":round(r['macro avg']['f1-score'],3),
+            "AUC":round(res['AUC'],3)
+        })
+    summary_df = pd.DataFrame(summary)
+    summary_df['Mean'] = summary_df[['Accuracy','Precision','Recall','F1','AUC']].mean(axis=1)
+    best_name = summary_df.loc[summary_df['Mean'].idxmax(),'Modèle']
+
+    st.subheader("Résumé global des modèles")
+    st.markdown(f"""
+    **Meilleur modèle selon l'ensemble des métriques : {best_name}**
+
+    - Accuracy : {summary_df.loc[summary_df['Modèle']==best_name,'Accuracy'].values[0]}
+    - Precision : {summary_df.loc[summary_df['Modèle']==best_name,'Precision'].values[0]}
+    - Recall : {summary_df.loc[summary_df['Modèle']==best_name,'Recall'].values[0]}
+    - F1-score : {summary_df.loc[summary_df['Modèle']==best_name,'F1'].values[0]}
+    - AUC : {summary_df.loc[summary_df['Modèle']==best_name,'AUC'].values[0]}
+    """)
+
+    # ================================
     # Onglets Streamlit
     # ================================
     tab1, tab2, tab3 = st.tabs(["Comparaison des modèles","Méthodologie","Analyse du meilleur modèle"])
@@ -119,31 +148,11 @@ def show_classification():
     # Onglet 1 - Comparaison des modèles
     # ================================
     with tab1:
-        summary = []
-        for name,res in results.items():
-            r = res["Report"]
-            summary.append({
-                "Modèle":name,
-                "Accuracy":round(r['accuracy'],3),
-                "Precision":round(r['macro avg']['precision'],3),
-                "Recall":round(r['macro avg']['recall'],3),
-                "F1":round(r['macro avg']['f1-score'],3),
-                "AUC":round(res['AUC'],3)
-            })
-        summary_df = pd.DataFrame(summary)
-        st.dataframe(summary_df)
-
-        # Plotly comparatif AUC + Precision
+        st.dataframe(summary_df.drop('Mean',axis=1))
         fig = px.bar(summary_df, x="Modèle", y=["AUC","Precision"], barmode='group', title="Comparaison des modèles")
         st.plotly_chart(fig)
-
-        # Meilleur modèle selon moyenne métriques
-        summary_df['Mean'] = summary_df[['Accuracy','Precision','Recall','F1','AUC']].mean(axis=1)
-        best_name = summary_df.loc[summary_df['Mean'].idxmax(),'Modèle']
-        st.write(f"Meilleur modèle selon toutes les métriques : **{best_name}**")
-        st.write("Matrice de confusion :")
+        st.write("Matrice de confusion du meilleur modèle :")
         st.write(results[best_name]["CM"])
-        st.write("AUC-ROC :", results[best_name]["AUC"])
 
     # ================================
     # Onglet 2 - Méthodologie
@@ -172,40 +181,28 @@ def show_classification():
         st.subheader(f"Analyse détaillée du meilleur modèle : {best_name}")
         best_model = results[best_name]["Model"]
 
-        # 1️⃣ Courbe ROC
+        # Courbe ROC
         y_test_proba = best_model.predict_proba(X_test)[:,1]
         fpr, tpr, thresholds = roc_curve(y_test, y_test_proba)
         auc_score = roc_auc_score(y_test, y_test_proba)
-
         roc_fig = go.Figure()
         roc_fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC curve', line=dict(color='royalblue', width=3)))
         roc_fig.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', name='Random', line=dict(color='red', width=2, dash='dash')))
-        roc_fig.update_layout(
-            title=f'Courbe ROC - {best_name} (AUC = {auc_score:.3f})',
-            xaxis_title='Taux de Faux Positifs (FPR)',
-            yaxis_title='Taux de Vrais Positifs (TPR)',
-            width=700,
-            height=500
-        )
+        roc_fig.update_layout(title=f'Courbe ROC - {best_name} (AUC = {auc_score:.3f})',
+                              xaxis_title='FPR', yaxis_title='TPR', width=700, height=500)
         st.plotly_chart(roc_fig)
 
-        # 2️⃣ Variables importantes
+        # Variables importantes
         if hasattr(best_model, "feature_importances_"):
             importances = pd.Series(best_model.feature_importances_, index=X.columns).sort_values(ascending=True).tail(15)
-            
             fig_imp = go.Figure(go.Bar(
                 x=importances.values,
                 y=importances.index,
                 orientation='h',
                 marker=dict(color=importances.values, colorscale='Viridis'),
             ))
-            fig_imp.update_layout(
-                title=f'Top 15 des variables importantes - {best_name}',
-                xaxis_title='Importance',
-                yaxis_title='Variables',
-                width=700,
-                height=600
-            )
+            fig_imp.update_layout(title=f'Top 15 des variables importantes - {best_name}',
+                                  xaxis_title='Importance', yaxis_title='Variables', width=700, height=600)
             st.plotly_chart(fig_imp)
         else:
             st.info("Pas de variable importance disponible pour ce modèle.")
