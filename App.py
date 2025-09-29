@@ -52,8 +52,5 @@ elif page == "Chapitre 4 : Classification supervisée":
 # Déploiement du modèle
 # ============================
 elif page == "Déploiement du modèle":
-    st.title("Déploiement du modèle")
-    st.markdown("""
-    Utilisez le formulaire ci-dessous pour prédire l’évolution d’un patient selon le modèle Random Forest.
-    """)
-    deployment.show_deployment()  # Appelle la fonction de ton fichier deployment.py
+    
+    deployment.show_deployment()  
