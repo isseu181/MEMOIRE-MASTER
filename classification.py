@@ -94,7 +94,19 @@ def show_classification():
     # Onglet 1 : Méthodologie & Prétraitement
     # ----------------
     with onglets[0]:
-        st.subheader("Aperçu des données et prétraitement")
+        st.subheader("Méthodologie et étapes réalisées")
+        st.markdown("""
+        1. **Sélection des variables** pertinentes pour la prédiction.
+        2. **Encodage des variables catégorielles** :  
+           - Binaire (OUI/NON → 1/0)  
+           - Ordinal pour niveau d'urgence et niveau d'instruction
+        3. **One-Hot Encoding** pour certaines variables catégorielles comme le mois et le diagnostic.
+        4. **Standardisation** des variables quantitatives pour uniformiser les échelles.
+        5. **Création de la variable cible** `Evolution_Cible` (0 = Favorable, 1 = Complications).
+        6. **Rééquilibrage** des classes avec SMOTETomek.
+        7. **Division des données** en ensembles train, validation et test.
+        """)
+        st.subheader("Aperçu des données après prétraitement")
         st.dataframe(df_selected.head())
         st.text(f"Taille du dataset après SMOTE : {X_res.shape}")
         st.text(f"Distribution de la cible :\n{pd.Series(y_res).value_counts()}")
@@ -122,15 +134,17 @@ def show_classification():
             y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
 
             auc = roc_auc_score(y_test, y_test_proba)
+            report = classification_report(y_test, y_test_pred, output_dict=True)
+
             results[name] = {
                 "model": model,
                 "Optimal Threshold": optimal_threshold,
                 "y_test": y_test,
                 "y_test_pred": y_test_pred,
                 "y_test_proba": y_test_proba,
+                "F1-score": report['macro avg']['f1-score']
             }
 
-            report = classification_report(y_test, y_test_pred, output_dict=True)
             summary_metrics.append({
                 "Modèle": name,
                 "Accuracy": round(report['accuracy'],3),
@@ -140,7 +154,7 @@ def show_classification():
                 "AUC-ROC": round(auc,3),
             })
 
-        summary_df = pd.DataFrame(summary_metrics).sort_values(by="AUC-ROC", ascending=False)
+        summary_df = pd.DataFrame(summary_metrics).sort_values(by="F1-Score", ascending=False)
         st.subheader("Comparaison des modèles selon leurs métriques")
         st.dataframe(summary_df)
 
@@ -156,7 +170,7 @@ def show_classification():
     with onglets[2]:
         best_model_name = summary_df.iloc[0]["Modèle"]
         best = results[best_model_name]
-        st.subheader(f"Meilleur modèle : {best_model_name}")
+        st.subheader(f"Meilleur modèle basé sur le F1-Score : {best_model_name}")
 
         # Matrice de confusion
         cm = confusion_matrix(best["y_test"], best["y_test_pred"])
