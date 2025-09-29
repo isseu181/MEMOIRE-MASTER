@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, roc_curve, confusion_matrix
+    roc_auc_score, roc_curve, confusion_matrix, classification_report
 )
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
 
@@ -26,20 +26,66 @@ def show_classification():
     df = pd.read_excel("fichier_nettoye.xlsx")
     best_model = joblib.load("random_forest_model.pkl")
     scaler = joblib.load("scaler.pkl")
-    features = joblib.load("features.pkl")  # liste des colonnes utilisées
+    features = joblib.load("features.pkl")
 
-    # Sélection et préparation des données
-    df_selected = df.copy()
-    # Reindex pour prendre exactement les features utilisées par le modèle
+    # ================================
+    # 2. Sélection et encodage des variables
+    # ================================
+    variables_selection = [
+        'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+        "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+        'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+        'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+        "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+        'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+        'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+        'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+        'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+        "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+        'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+        'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+    ]
+    df_selected = df[variables_selection].copy()
+
+    # Encodage binaire
+    binary_mappings = {
+        'Pâleur': {'OUI':1, 'NON':0},
+        'Souffle systolique fonctionnel': {'OUI':1, 'NON':0},
+        'Vaccin contre méningocoque': {'OUI':1, 'NON':0},
+        'Splénomégalie': {'OUI':1, 'NON':0},
+        'Prophylaxie à la pénicilline': {'OUI':1, 'NON':0},
+        'Parents Salariés': {'OUI':1, 'NON':0},
+        'Prise en charge Hospitalisation': {'OUI':1, 'NON':0},
+        'Radiographie du thorax Oui ou Non': {'OUI':1, 'NON':0},
+        'Douleur provoquée (Os.Abdomen)': {'OUI':1, 'NON':0},
+        'Vaccin contre pneumocoque': {'OUI':1, 'NON':0},
+    }
+    df_selected.replace(binary_mappings, inplace=True)
+
+    # Encodage ordinal
+    ordinal_mappings = {
+        'NiveauUrgence': {'Urgence1':1, 'Urgence2':2, 'Urgence3':3, 'Urgence4':4, 'Urgence5':5, 'Urgence6':6},
+        "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
+    }
+    df_selected.replace(ordinal_mappings, inplace=True)
+
+    # One-hot pour catégorielles
+    df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
+
+    # ================================
+    # 3. Préparer X et y
+    # ================================
+    df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
+    y = df_selected['Evolution_Cible']
+
+    # Garder seulement les features utilisées dans le modèle
     X = df_selected.reindex(columns=features, fill_value=0)
-    # Convertir en float pour scaler
-    X = X.astype(float)
-    y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
+    # Standardisation
     X_scaled = scaler.transform(X)
 
     # ================================
-    # 2. Onglets Streamlit
+    # 4. Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -47,7 +93,6 @@ def show_classification():
     with tabs[0]:
         st.subheader("Comparaison des modèles et métriques")
 
-        # Définition des modèles
         models = {
             "Decision Tree": DecisionTreeClassifier(random_state=42),
             "Random Forest": best_model,
@@ -57,7 +102,7 @@ def show_classification():
 
         results = []
         for name, mdl in models.items():
-            if name != "Random Forest":  # le RF est déjà entraîné
+            if name != "Random Forest":
                 mdl.fit(X_scaled, y)
 
             y_proba = mdl.predict_proba(X_scaled)[:,1]
@@ -78,7 +123,6 @@ def show_classification():
         results_df = pd.DataFrame(results)
         st.dataframe(results_df)
 
-        # Détermination du meilleur modèle selon moyenne métriques
         metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
         results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
         best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
@@ -117,7 +161,6 @@ def show_classification():
             feat_importance = pd.DataFrame({"Variable": features, "Importance": importances})
             feat_importance = feat_importance.sort_values(by="Importance", ascending=False)
             st.dataframe(feat_importance)
-            # Graphique
             fig, ax = plt.subplots(figsize=(10,6))
             sns.barplot(x="Importance", y="Variable", data=feat_importance, ax=ax, palette="viridis")
             ax.set_title("Variables importantes")
@@ -129,13 +172,13 @@ def show_classification():
     with tabs[2]:
         st.subheader("Méthodologie utilisée")
         st.markdown("""
-        1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.
-        2. **Encodage des variables qualitatives** : 0 = Non, 1 = Oui, et encodage ordinal si nécessaire.
-        3. **Standardisation** : mise à l’échelle des variables quantitatives via StandardScaler.
-        4. **Sélection des features** : sauvegardées dans `features.pkl`.
-        5. **Entraînement des modèles** : Random Forest, Decision Tree, SVM, LightGBM.
-        6. **Evaluation** : Accuracy, Precision, Recall, F1-Score, AUC-ROC, seuil optimal.
-        7. **Comparaison des modèles** : choix du meilleur modèle par moyenne des métriques.
+        1. Prétraitement des données : nettoyage et sélection des variables pertinentes.
+        2. Encodage des variables qualitatives : 0 = Non, 1 = Oui.
+        3. Standardisation via StandardScaler.
+        4. Sélection des features : sauvegardées dans `features.pkl`.
+        5. Entraînement des modèles : Random Forest, Decision Tree, SVM, LightGBM.
+        6. Évaluation : Accuracy, Precision, Recall, F1-Score, AUC-ROC, seuil optimal.
+        7. Comparaison des modèles : choix du meilleur modèle par moyenne des métriques.
         """)
 
     # --- Onglet 4 : Simulateur ---
@@ -145,7 +188,6 @@ def show_classification():
 
         user_input = {}
         for feat in features:
-            # Si variable binaire
             if df_selected[feat].nunique() == 2:
                 user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
             else:
