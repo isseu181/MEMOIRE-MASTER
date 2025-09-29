@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-import eda, clustering, classification
+import eda, clustering, classification, deployment  # Ajout du module deployment
 
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
@@ -32,7 +32,6 @@ if page == "Chapitre 1 : Cadre théorique":
 # ============================
 elif page == "Chapitre 2 : Analyse exploratoire":
     st.title("Analyse exploratoire des données")
-    st.markdown("")
     eda.show_eda()
 
 # ============================
@@ -55,13 +54,6 @@ elif page == "Chapitre 4 : Classification supervisée":
 elif page == "Déploiement du modèle":
     st.title("Déploiement du modèle")
     st.markdown("""
-    La base de données de test est déjà intégrée.  
-    Vous pouvez directement utiliser le modèle pour prédire sur de nouvelles données internes.
+    Utilisez le formulaire ci-dessous pour prédire l’évolution d’un patient selon le modèle Random Forest.
     """)
-    import pandas as pd
-    try:
-        df_test = pd.read_excel("fichier_nettoye.xlsx", sheet_name=None)
-        st.write("Aperçu des données intégrées :", {k: v.head() for k, v in df_test.items()})
-    except Exception as e:
-        st.error(f"Impossible de charger la base intégrée : {e}")
-
+    deployment.show_deployment()  # Appelle la fonction de ton fichier deployment.py
