@@ -30,18 +30,18 @@ def show_classification():
 
     df_selected = df.copy()
 
-    # Réaligner les colonnes avec celles du modèle
+    # ================================
+    # 2. Préparer les données pour le modèle
+    # ================================
     X = df_selected.reindex(columns=features, fill_value=0)
-    numeric_cols = X.select_dtypes(include=[np.number]).columns
-    X[numeric_cols] = X[numeric_cols].astype(float)
-
+    # Convertir toutes les colonnes en numérique et remplacer les NaN par 0
+    X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
-    # Appliquer le scaler
     X_scaled = scaler.transform(X)
 
     # ================================
-    # 2. Onglets Streamlit
+    # 3. Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -79,7 +79,7 @@ def show_classification():
         results_df = pd.DataFrame(results)
         st.dataframe(results_df)
 
-        # Déterminer le meilleur modèle selon moyenne métriques
+        # Détermination du meilleur modèle selon moyenne métriques
         metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
         results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
         best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
@@ -146,7 +146,6 @@ def show_classification():
 
         user_input = {}
         for feat in features:
-            # Si variable binaire
             if df_selected[feat].nunique() == 2:
                 user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
             else:
@@ -158,6 +157,7 @@ def show_classification():
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
             X_new = X_new.reindex(columns=features, fill_value=0)
+            X_new = X_new.apply(pd.to_numeric, errors='coerce').fillna(0)
             X_new_scaled = scaler.transform(X_new)
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
