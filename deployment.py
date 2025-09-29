@@ -34,7 +34,7 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### Formulaire de saisie des données du patient")
+    st.markdown("### Utilisez le formulaire ci-dessous pour prédire l’évolution d’un patient selon le modèle Random Forest.")
 
     # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
@@ -103,4 +103,5 @@ def show_deployment():
             st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"Évolution prévue : **Complications** ⚠️ (Probabilité : {pred_proba:.2f})")
+
 
