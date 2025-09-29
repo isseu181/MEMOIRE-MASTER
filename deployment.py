@@ -35,9 +35,9 @@ def show_deployment():
     ordinal_vars = ["NiveauUrgence", "Niveau d'instruction scolarité"]
 
     # Variables catégorielles encodées en dummies
-    diagnostic_categories = ['TypeA', 'TypeB', 'TypeC']  # ⚠️ Remplace par les vraies modalités de "Diagnostic Catégorisé"
+    diagnostic_categories = ['CVO', 'Anémie', 'Anémie','AVC', 'Autres']  
     mois_categories = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet',
-                       'Août','Septembre','Octobre','Novembre','Décembre']
+                       'Aout','Septembre','Octobre','Novembre','Decembre']
 
     st.markdown("### Formulaire de saisie des données du patient")
 
@@ -98,3 +98,4 @@ def show_deployment():
             st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"Évolution prévue : **Complications** ⚠️ (Probabilité : {pred_proba:.2f})")
+
