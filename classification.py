@@ -26,22 +26,20 @@ def show_classification():
     df = pd.read_excel("fichier_nettoye.xlsx")
     best_model = joblib.load("random_forest_model.pkl")
     scaler = joblib.load("scaler.pkl")
-    features = joblib.load("features.pkl")
+    features = joblib.load("features.pkl")  # liste des colonnes utilisées
 
+    # Sélection et préparation des données
     df_selected = df.copy()
-
-    # ================================
-    # 2. Préparer les données pour le modèle
-    # ================================
+    # Reindex pour prendre exactement les features utilisées par le modèle
     X = df_selected.reindex(columns=features, fill_value=0)
-    # Convertir toutes les colonnes en numérique et remplacer les NaN par 0
-    X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
+    # Convertir en float pour scaler
+    X = X.astype(float)
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
     X_scaled = scaler.transform(X)
 
     # ================================
-    # 3. Onglets Streamlit
+    # 2. Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -49,6 +47,7 @@ def show_classification():
     with tabs[0]:
         st.subheader("Comparaison des modèles et métriques")
 
+        # Définition des modèles
         models = {
             "Decision Tree": DecisionTreeClassifier(random_state=42),
             "Random Forest": best_model,
@@ -58,7 +57,7 @@ def show_classification():
 
         results = []
         for name, mdl in models.items():
-            if name != "Random Forest":
+            if name != "Random Forest":  # le RF est déjà entraîné
                 mdl.fit(X_scaled, y)
 
             y_proba = mdl.predict_proba(X_scaled)[:,1]
@@ -146,6 +145,7 @@ def show_classification():
 
         user_input = {}
         for feat in features:
+            # Si variable binaire
             if df_selected[feat].nunique() == 2:
                 user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
             else:
@@ -156,8 +156,6 @@ def show_classification():
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
-            X_new = X_new.reindex(columns=features, fill_value=0)
-            X_new = X_new.apply(pd.to_numeric, errors='coerce').fillna(0)
             X_new_scaled = scaler.transform(X_new)
             y_new_proba = best_model.predict_proba(X_new_scaled)[:,1]
             y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
