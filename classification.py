@@ -18,7 +18,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 def show_classification():
-    st.title("Classification supervisée")
+    
 
     # ================================
     # 1️⃣ Chargement des données
@@ -202,4 +202,5 @@ def show_classification():
         fig_roc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', name='Random', line=dict(dash='dash')))
         fig_roc.update_layout(title=f'Courbe ROC - {best_name}', xaxis_title='FPR', yaxis_title='TPR')
         st.plotly_chart(fig_roc)
+
 
