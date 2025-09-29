@@ -5,10 +5,7 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import (
-    accuracy_score, precision_score, recall_score, f1_score,
-    roc_auc_score, roc_curve, confusion_matrix, classification_report
-)
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, confusion_matrix
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -28,29 +25,17 @@ def show_classification():
     scaler = joblib.load("scaler.pkl")
     features = joblib.load("features.pkl")
 
+    # ================================
+    # 2️⃣ Sélection des variables
+    # ================================
     df_selected = df.copy()
-
-    # Colonnes quantitatives utilisées pour la standardisation
-    quantitative_vars = [
-        'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
-        'Âge du debut d etude en mois (en janvier 2023)', 'VGM (fl/u3)',
-        'HB (g/dl)', 'Nbre de GB (/mm3)', 'PLT (/mm3)', 'Nbre de PLT (/mm3)',
-        'TCMH (g/dl)', "Nbre d'hospitalisations avant 2017",
-        "Nbre d'hospitalisations entre 2017 et 2023",
-        'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
-        'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
-    ]
-
-    # Reindexer selon les features sauvegardés (remplit les manquantes avec 0)
-    X = df_selected.reindex(columns=features, fill_value=0)
-
-    # Standardiser les quantitatives
-    X[quantitative_vars] = scaler.transform(X[quantitative_vars])
-
+    X = df_selected.reindex(columns=features, fill_value=0).astype(float)
     y = df_selected['Evolution'].map({'Favorable':0, 'Complications':1})
 
+    X_scaled = scaler.transform(X)
+
     # ================================
-    # 2️⃣ Onglets Streamlit
+    # 3️⃣ Onglets Streamlit
     # ================================
     tabs = st.tabs(["Performance", "Variables importantes", "Méthodologie", "Simulateur"])
 
@@ -68,9 +53,9 @@ def show_classification():
         results = []
         for name, mdl in models.items():
             if name != "Random Forest":
-                mdl.fit(X, y)
+                mdl.fit(X_scaled, y)
 
-            y_proba = mdl.predict_proba(X)[:,1]
+            y_proba = mdl.predict_proba(X_scaled)[:,1]
             fpr, tpr, thresholds = roc_curve(y, y_proba)
             optimal_threshold = thresholds[np.argmax(tpr - fpr)]
             y_pred = (y_proba >= optimal_threshold).astype(int)
@@ -88,6 +73,7 @@ def show_classification():
         results_df = pd.DataFrame(results)
         st.dataframe(results_df)
 
+        # Meilleur modèle
         metrics = ["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]
         results_df["Score Moyenne"] = results_df[metrics].mean(axis=1)
         best_row = results_df.loc[results_df["Score Moyenne"].idxmax()]
@@ -95,7 +81,7 @@ def show_classification():
 
         # Matrice de confusion
         best_model_final = models[best_row["Modèle"]]
-        y_proba_best = best_model_final.predict_proba(X)[:,1]
+        y_proba_best = best_model_final.predict_proba(X_scaled)[:,1]
         y_pred_best = (y_proba_best >= best_row["Seuil optimal"]).astype(int)
 
         cm = confusion_matrix(y, y_pred_best)
@@ -137,55 +123,41 @@ def show_classification():
     with tabs[2]:
         st.subheader("Méthodologie utilisée")
         st.markdown("""
-        1. Prétraitement des données et sélection des variables pertinentes
-        2. Encodage des variables qualitatives et standardisation des quantitatives
-        3. Entraînement des modèles : Random Forest, Decision Tree, SVM, LightGBM
-        4. Évaluation et comparaison via Accuracy, Precision, Recall, F1-Score, AUC-ROC et seuil optimal
+        1. Prétraitement et sélection des variables
+        2. Encodage des variables qualitatives
+        3. Standardisation des quantitatives
+        4. Entraînement des modèles
+        5. Évaluation : Accuracy, Precision, Recall, F1-Score, AUC-ROC
+        6. Comparaison et choix du meilleur modèle
         """)
 
     # --- Onglet 4 : Simulateur ---
     with tabs[3]:
         st.subheader("Simulateur de prédiction")
-        st.markdown("Entrez les valeurs des variables pour prédire l'évolution clinique")
-
-        # Identifier les colonnes One-Hot pour Mois et Diagnostic
-        mois_cols = [col for col in features if col.startswith("Mois_")]
-        diag_cols = [col for col in features if col.startswith("Diagnostic Catégorisé_")]
-
-        mois_values = [col.replace("Mois_", "") for col in mois_cols]
-        diag_values = [col.replace("Diagnostic Catégorisé_", "") for col in diag_cols]
+        st.markdown("Entrez les valeurs pour prédire l'évolution clinique")
 
         user_input = {}
-
         for feat in features:
-            if feat in quantitative_vars:
+            if df_selected[feat].nunique() == 2:  # variable binaire
+                user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
+            else:
                 min_val = float(df_selected[feat].min())
                 max_val = float(df_selected[feat].max())
                 mean_val = float(df_selected[feat].mean())
                 user_input[feat] = st.number_input(feat, min_value=min_val, max_value=max_val, value=mean_val)
-            elif feat in mois_cols or feat in diag_cols:
-                user_input[feat] = 0
-            else:
-                user_input[feat] = st.selectbox(feat, options=[0,1], format_func=lambda x: "Oui" if x==1 else "Non")
-
-        if mois_cols:
-            selected_mois = st.selectbox("Mois", options=mois_values)
-            for col in mois_cols:
-                user_input[col] = 1 if col == f"Mois_{selected_mois}" else 0
-
-        if diag_cols:
-            selected_diag = st.selectbox("Diagnostic Catégorisé", options=diag_values)
-            for col in diag_cols:
-                user_input[col] = 1 if col == f"Diagnostic Catégorisé_{selected_diag}" else 0
 
         if st.button("Prédire l'évolution"):
             X_new = pd.DataFrame([user_input])
+            # Ajouter les colonnes manquantes et réordonner
             for col in features:
                 if col not in X_new.columns:
                     X_new[col] = 0
-            X_new = X_new[features]
+            X_new = X_new[features].astype(float)
+            # Standardisation
+            quantitative_vars = [c for c in X_new.columns if c in df_selected.select_dtypes(include=np.number).columns]
             X_new[quantitative_vars] = scaler.transform(X_new[quantitative_vars])
+            # Prédiction
             y_new_proba = best_model.predict_proba(X_new)[:,1]
-            y_new_pred = (y_new_proba >= 0.56).astype(int)
+            y_new_pred = (y_new_proba >= best_row["Seuil optimal"]).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
             st.write("**Prédiction finale :**", "Complications" if y_new_pred[0]==1 else "Favorable")
