@@ -191,7 +191,7 @@ def show_classification():
         st.write(f"Meilleur modèle selon toutes les métriques : **{best_name}**")
         st.write("Matrice de confusion :")
         st.write(results[best_name]["CM"])
-        st.write("AUC-ROC :", results[best_name]["AUC"])
+       
 
         # Courbe ROC
         best_model = results[best_name]["Model"]
@@ -202,3 +202,4 @@ def show_classification():
         fig_roc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', name='Random', line=dict(dash='dash')))
         fig_roc.update_layout(title=f'Courbe ROC - {best_name}', xaxis_title='FPR', yaxis_title='TPR')
         st.plotly_chart(fig_roc)
+
