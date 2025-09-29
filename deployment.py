@@ -1,10 +1,15 @@
-# deployment.py
+# ================================
+# deployment.py - Déploiement Random Forest
+# ================================
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 
 def show_deployment():
+    st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
+    st.markdown("<h1 style='text-align:center;color:darkgreen;'>Déploiement - Random Forest</h1>", unsafe_allow_html=True)
+
     # -------------------------------
     # Charger le modèle et le scaler
     # -------------------------------
@@ -29,17 +34,16 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    # Variables ordinales
-    # NiveauUrgence: 1=Urgence1, 2=Urgence2, 3=Urgence3, 4=Urgence4, 5=Urgence5, 6=Urgence6
-    # Niveau d'instruction scolarité: 0=NON, 1=Maternelle, 2=Elémentaire, 3=Secondaire, 4=Enseignement Supérieur
-    ordinal_vars = ["NiveauUrgence", "Niveau d'instruction scolarité"]
-
-    # Variables catégorielles encodées en dummies
-    diagnostic_categories = ['CVO', 'Anémie', 'Anémie','AVC', 'Autres']  
-    mois_categories = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet',
-                       'Aout','Septembre','Octobre','Novembre','Decembre']
-
     st.markdown("### Formulaire de saisie des données du patient")
+
+    # Extraire les catégories exactes du modèle entraîné
+    model_features = model.feature_names_in_
+    diagnostic_cols = [c for c in model_features if "Diagnostic Catégorisé_" in c]
+    mois_cols = [c for c in model_features if "Mois_" in c]
+
+    # Extraire les catégories originales pour le formulaire
+    diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in diagnostic_cols]
+    mois_categories = [c.replace("Mois_", "") for c in mois_cols]
 
     with st.form("patient_form"):
         st.subheader("Variables quantitatives")
@@ -54,7 +58,10 @@ def show_deployment():
 
         st.subheader("Variables ordinales")
         niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
-        niveau_instruction = st.selectbox("Niveau d'instruction scolarité (0=NON,1=Maternelle,2=Elémentaire,3=Secondaire,4=Supérieur)", options=[0,1,2,3,4])
+        niveau_instruction = st.selectbox(
+            "Niveau d'instruction scolarité (0=NON,1=Maternelle,2=Elémentaire,3=Secondaire,4=Supérieur)",
+            options=[0,1,2,3,4]
+        )
 
         st.subheader("Variables catégorielles")
         diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
@@ -72,17 +79,15 @@ def show_deployment():
 
         input_df = pd.DataFrame([input_dict])
 
-        # Encodage dummies pour Diagnostic et Mois
+        # Encodage dummies identique à l'entraînement
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"], drop_first=True)
 
-        # Vérifier que toutes les colonnes attendues par le modèle sont présentes
-        # (par exemple, lors de l'entraînement, X.columns a été utilisé)
-        model_features = model.feature_names_in_
+        # Ajouter les colonnes manquantes avec 0
         for col in model_features:
             if col not in input_df.columns:
-                input_df[col] = 0  # Ajouter les colonnes manquantes avec 0
+                input_df[col] = 0
 
-        # Réordonner les colonnes
+        # Réordonner les colonnes pour correspondre au modèle
         input_df = input_df[model_features]
 
         # Standardisation des variables quantitatives
