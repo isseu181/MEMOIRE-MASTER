@@ -1,5 +1,5 @@
 # ================================
-# classification.py pour Streamlit - version mémoire-ready
+# classification.py pour Streamlit - version finale mémoire-ready
 # ================================
 import streamlit as st
 import pandas as pd
@@ -16,9 +16,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
 
-# -------------------------------
-# Fonction principale
-# -------------------------------
 def show_classification():
     st.set_page_config(page_title="Classification Supervisée", layout="wide")
     st.markdown("<h1 style='text-align:center;color:darkblue;'>Classification Supervisée - Analyse des Modèles</h1>", unsafe_allow_html=True)
@@ -33,10 +30,23 @@ def show_classification():
     # -------------------------------
     # 2️⃣ Préparation des données
     # -------------------------------
-    variables_selection = [ ... ]  # liste complète comme avant
+    variables_selection = [
+        'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
+        "Nbre d'hospitalisations avant 2017", 'CRP Si positive (Valeur)', 'Pâleur',
+        'Âge du debut d etude en mois (en janvier 2023)', 'Souffle systolique fonctionnel',
+        'VGM (fl/u3)', 'HB (g/dl)', 'Vaccin contre méningocoque', 'Nbre de GB (/mm3)',
+        "% d'Hb S", 'Âge de découverte de la drépanocytose (en mois)', 'Splénomégalie',
+        'Prophylaxie à la pénicilline', "Taux d'Hb (g/dL)", 'Parents Salariés',
+        'PLT (/mm3)', 'Diagnostic Catégorisé', 'Prise en charge Hospitalisation',
+        'Nbre de PLT (/mm3)', 'TCMH (g/dl)', 'Nbre de transfusion avant 2017',
+        'Radiographie du thorax Oui ou Non', "Niveau d'instruction scolarité",
+        "Nbre d'hospitalisations entre 2017 et 2023", "% d'Hb F",
+        'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
+        'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
+    ]
     df_selected = df[variables_selection].copy()
 
-    # Encodages binaires et ordinals
+    # Encodage binaire
     binary_mappings = {col: {'OUI':1,'NON':0} for col in [
         'Pâleur','Souffle systolique fonctionnel','Vaccin contre méningocoque',
         'Splénomégalie','Prophylaxie à la pénicilline','Parents Salariés',
@@ -44,18 +54,28 @@ def show_classification():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque']}
     df_selected.replace(binary_mappings, inplace=True)
 
+    # Encodage ordinal
     ordinal_mappings = {
         'NiveauUrgence': {'Urgence1':1,'Urgence2':2,'Urgence3':3,'Urgence4':4,'Urgence5':5,'Urgence6':6},
         "Niveau d'instruction scolarité": {'Maternelle ':1,'Elémentaire ':2,'Secondaire':3,'Enseignement Supérieur ':4,'NON':0}
     }
     df_selected.replace(ordinal_mappings, inplace=True)
+
+    # Variables catégorielles en dummies
     df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé','Mois'], drop_first=True)
 
     # Standardisation
-    quantitative_vars = [ ... ]  # liste complète comme avant
+    quantitative_vars = [
+        'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
+        'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
+        'Nbre de GB (/mm3)','PLT (/mm3)','Nbre de PLT (/mm3)','TCMH (g/dl)',
+        "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
+        'Nbre de transfusion avant 2017','Nbre de transfusion Entre 2017 et 2023',
+        'CRP Si positive (Valeur)',"Taux d'Hb (g/dL)","% d'Hb S","% d'Hb F"
+    ]
     df_selected[quantitative_vars] = StandardScaler().fit_transform(df_selected[quantitative_vars])
 
-    # Cible
+    # Variable cible
     df_selected['Evolution_Cible'] = df_selected['Evolution'].map({'Favorable':0,'Complications':1})
     X = df_selected.drop(['Evolution','Evolution_Cible'], axis=1)
     y = df_selected['Evolution_Cible']
@@ -63,9 +83,9 @@ def show_classification():
     # SMOTETomek
     X_res, y_res = SMOTETomek(random_state=42).fit_resample(X, y)
 
-    # Split train/val/test
-    X_train, X_temp, y_train, y_temp = train_test_split(X_res, y_res, test_size=0.4, stratify=y_res, random_state=42)
-    X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, stratify=y_temp, random_state=42)
+    # Division train/val/test
+    X_train, X_temp, y_train, y_temp = train_test_split(X_res,y_res,test_size=0.4,stratify=y_res,random_state=42)
+    X_val, X_test, y_val, y_test = train_test_split(X_temp,y_temp,test_size=0.5,stratify=y_temp,random_state=42)
 
     # -------------------------------
     # 3️⃣ Modèles
@@ -118,9 +138,20 @@ def show_classification():
     # Onglet 1 - Comparaison des modèles
     # -------------------------------
     with tab1:
+        st.subheader("Comparaison des modèles")
+
+        # 1️⃣ Matrice de confusion du meilleur modèle
         st.markdown(f"### Matrice de confusion du meilleur modèle : <span style='color:darkred;'>{best_name}</span>", unsafe_allow_html=True)
         st.write(results[best_name]["CM"])
 
+        # 2️⃣ Barplot comparatif AUC + Precision
+        fig_bar = px.bar(summary_df, x="Modèle", y=["AUC","Precision"],
+                         barmode='group', title="Comparaison des modèles : AUC vs Precision",
+                         color_discrete_sequence=px.colors.qualitative.Bold)
+        fig_bar.update_layout(width=750, height=450)
+        st.plotly_chart(fig_bar)
+
+        # 3️⃣ Heatmap des métriques
         metrics_heatmap = summary_df.set_index('Modèle')[['Accuracy','Precision','Recall','F1','AUC']]
         heatmap_fig = ff.create_annotated_heatmap(
             z=np.round(metrics_heatmap.values,3),
@@ -146,7 +177,7 @@ def show_classification():
         7. Gestion du déséquilibre avec SMOTETomek.
         8. Division en ensembles train/validation/test.
         9. Définition et entraînement de plusieurs modèles supervisés.
-        10. Évaluation des modèles sur plusieurs métriques.
+        10. Évaluation des modèles sur plusieurs métriques (Accuracy, Precision, Recall, F1, AUC).
         11. Comparaison visuelle des modèles.
         12. Sélection du meilleur modèle basé sur l’ensemble des métriques.
         """)
