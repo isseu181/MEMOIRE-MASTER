@@ -5,7 +5,10 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, roc_curve, confusion_matrix
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, roc_curve, confusion_matrix, classification_report
+)
 
 st.set_page_config(page_title="Classification Patients", layout="wide")
 
@@ -144,3 +147,4 @@ def show_classification():
             y_new_pred = (y_new_proba >= threshold).astype(int)
             st.write("**Probabilité d'évolution vers complications :**", round(float(y_new_proba),3))
             st.write("**Prédiction finale :**", "Complications" if y_new_pred[0]==1 else "Favorable")
+
