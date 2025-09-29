@@ -13,8 +13,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 import lightgbm as lgb
-import seaborn as sns
-import matplotlib.pyplot as plt
 
 # ================================
 # 2️⃣ Chargement des données
@@ -43,7 +41,6 @@ variables_selection = [
     'Douleur provoquée (Os.Abdomen)', 'Mois', 'Vaccin contre pneumocoque',
     'HDJ', 'Nbre de transfusion Entre 2017 et 2023', 'Evolution'
 ]
-
 df_selected = df[variables_selection].copy()
 
 # ================================
@@ -68,7 +65,6 @@ ordinal_mappings = {
     "Niveau d'instruction scolarité": {'Maternelle ':1, 'Elémentaire ':2, 'Secondaire':3, 'Enseignement Supérieur ':4, 'NON':0}
 }
 df_selected.replace(ordinal_mappings, inplace=True)
-
 df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé', 'Mois'], drop_first=True)
 
 # ================================
@@ -83,7 +79,6 @@ quantitative_vars = [
     'Nbre de transfusion avant 2017', 'Nbre de transfusion Entre 2017 et 2023',
     'CRP Si positive (Valeur)', "Taux d'Hb (g/dL)", "% d'Hb S", "% d'Hb F"
 ]
-
 scaler = StandardScaler()
 df_selected[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
@@ -122,16 +117,12 @@ models = {
 results = {}
 for name, model in models.items():
     model.fit(X_train, y_train)
-    
     y_val_proba = model.predict_proba(X_val)[:,1]
     fpr, tpr, thresholds = roc_curve(y_val, y_val_proba)
     optimal_threshold = thresholds[np.argmax(tpr - fpr)]
-    
     y_test_proba = model.predict_proba(X_test)[:,1]
     y_test_pred = (y_test_proba >= optimal_threshold).astype(int)
-    
     cm = confusion_matrix(y_test, y_test_pred)
-    
     results[name] = {
         "Model": model,
         "Confusion Matrix": cm,
@@ -141,58 +132,60 @@ for name, model in models.items():
     }
 
 # ================================
-# 1️⃣1️⃣ Comparaison des modèles (Toutes les métriques)
+# Streamlit Tabs
 # ================================
-summary_metrics = []
-for name, res in results.items():
-    report = res['Classification Report']
-    summary_metrics.append({
-        "Modèle": name,
-        "Accuracy": report['accuracy'],
-        "Precision": report['macro avg']['precision'],
-        "Recall": report['macro avg']['recall'],
-        "F1-Score": report['macro avg']['f1-score'],
-        "AUC-ROC": res['AUC-ROC']
-    })
+tab1, tab2, tab3 = st.tabs(["Méthodologie", "Comparaison des modèles", "Meilleur modèle"])
 
-summary_df = pd.DataFrame(summary_metrics)
+with tab1:
+    st.header("Méthodologie et étapes")
+    st.write("""
+    1. **Chargement et sélection des variables** : nous avons choisi les variables pertinentes pour la prédiction.
+    2. **Encodage des variables** : les variables binaires et ordinales ont été codées numériquement et les variables catégorielles via one-hot encoding.
+    3. **Standardisation** : les variables quantitatives ont été standardisées.
+    4. **Équilibrage des classes** : SMOTETomek a été utilisé pour équilibrer la variable cible.
+    5. **Division train/validation/test** : pour entraîner et évaluer les modèles correctement.
+    6. **Entraînement des modèles** : Decision Tree, Random Forest, SVM et LightGBM.
+    7. **Évaluation et comparaison** : calcul de toutes les métriques (Accuracy, Precision, Recall, F1-Score, AUC-ROC) et visualisation.
+    """)
 
-# Choix du meilleur modèle basé sur toutes les métriques
-summary_df["Score_Global"] = summary_df[["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]].mean(axis=1)
-best_model_name = summary_df.sort_values(by="Score_Global", ascending=False).iloc[0]["Modèle"]
-best_model_res = results[best_model_name]
+with tab2:
+    st.header("Comparaison des modèles")
+    summary_metrics = []
+    for name, res in results.items():
+        report = res['Classification Report']
+        summary_metrics.append({
+            "Modèle": name,
+            "Accuracy": report['accuracy'],
+            "Precision": report['macro avg']['precision'],
+            "Recall": report['macro avg']['recall'],
+            "F1-Score": report['macro avg']['f1-score'],
+            "AUC-ROC": res['AUC-ROC']
+        })
+    summary_df = pd.DataFrame(summary_metrics)
+    summary_df["Score_Global"] = summary_df[["Accuracy","Precision","Recall","F1-Score","AUC-ROC"]].mean(axis=1)
+    st.dataframe(summary_df.sort_values(by="Score_Global", ascending=False))
 
-st.subheader("Comparaison des modèles")
-st.dataframe(summary_df.sort_values(by="Score_Global", ascending=False))
+    # Graphique interactif
+    fig = go.Figure()
+    metrics_to_plot = ["Accuracy", "Precision", "AUC-ROC"]
+    for metric in metrics_to_plot:
+        fig.add_trace(go.Bar(x=summary_df["Modèle"], y=summary_df[metric], name=metric))
+    fig.update_layout(barmode='group', title="Comparaison des modèles", yaxis=dict(range=[0,1]))
+    st.plotly_chart(fig)
 
-# ================================
-# 1️⃣2️⃣ Graphique interactif avec Plotly
-# ================================
-import plotly.graph_objects as go
+with tab3:
+    st.header("Meilleur modèle")
+    best_model_name = summary_df.sort_values(by="Score_Global", ascending=False).iloc[0]["Modèle"]
+    best_model_res = results[best_model_name]
+    st.subheader(f"Modèle sélectionné : {best_model_name}")
+    st.write("Matrice de confusion :")
+    st.write(best_model_res["Confusion Matrix"])
 
-fig = go.Figure()
-metrics_to_plot = ["Accuracy","Precision","AUC-ROC"]
-for metric in metrics_to_plot:
-    fig.add_trace(go.Bar(x=summary_df["Modèle"], y=summary_df[metric], name=metric))
-fig.update_layout(
-    barmode='group', title="Comparaison des modèles selon Accuracy, Precision et AUC",
-    yaxis=dict(range=[0,1]), xaxis_title="Modèles", yaxis_title="Valeurs"
-)
-st.plotly_chart(fig)
-
-# ================================
-# 1️⃣3️⃣ Meilleur modèle : matrice de confusion et AUC
-# ================================
-st.subheader(f"Meilleur modèle selon toutes les métriques : {best_model_name}")
-st.write("Matrice de confusion :")
-st.write(best_model_res["Confusion Matrix"])
-
-# AUC-ROC
-y_test_proba = best_model_res["Model"].predict_proba(X_test)[:,1]
-fpr, tpr, _ = roc_curve(y_test, y_test_proba)
-st.write("Courbe AUC-ROC :")
-fig_auc = go.Figure()
-fig_auc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC'))
-fig_auc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', line=dict(dash='dash'), name='Random'))
-fig_auc.update_layout(xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
-st.plotly_chart(fig_auc)
+    # Courbe AUC
+    y_test_proba = best_model_res["Model"].predict_proba(X_test)[:,1]
+    fpr, tpr, _ = roc_curve(y_test, y_test_proba)
+    fig_auc = go.Figure()
+    fig_auc.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC'))
+    fig_auc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', line=dict(dash='dash'), name='Random'))
+    fig_auc.update_layout(title="Courbe AUC-ROC", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
+    st.plotly_chart(fig_auc)
