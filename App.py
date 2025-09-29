@@ -38,14 +38,12 @@ elif page == "Chapitre 2 : Analyse exploratoire":
 # Chapitre 3 : Classification non supervisée
 # ============================
 elif page == "Chapitre 3 : Classification non supervisée":
-    st.title("Classification non supervisée")
     clustering.show_clustering()
 
 # ============================
 # Chapitre 4 : Classification supervisée
 # ============================
 elif page == "Chapitre 4 : Classification supervisée":
-    st.title("Classification supervisée")
     classification.show_classification()
 
 # ============================
