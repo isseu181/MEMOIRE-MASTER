@@ -14,7 +14,7 @@ st.set_page_config(page_title="Tableau de bord - Drépanocytose", layout="wide")
 try:
     df_eda = pd.read_excel("fichier_nettoye.xlsx")
 except:
-    st.error("❌ fichier_nettoye.xlsx introuvable")
+    st.error(" fichier_nettoye.xlsx introuvable")
     st.stop()
 
 try:
@@ -44,7 +44,7 @@ def show_dashboard():
     col4.metric("Complications", f"{complications:.1f}%" if complications else "N/A")
 
     # ============================
-    # GRAPHIQUES (2 PAR LIGNE)
+    # GRAPHIQUES 
     # ============================
     plots = []
 
@@ -107,7 +107,7 @@ def show_dashboard():
         fig = px.bar(cross_tab, barmode="group", title="Diagnostic vs Évolution (%)")
         plots.append(fig)
 
-    # --- affichage 2 par ligne ---
+    # --- affichage 
     for i in range(0, len(plots), 2):
         cols = st.columns(2)
         for j, col in enumerate(cols):
@@ -123,7 +123,7 @@ def show_dashboard():
 
     bio_means = {}
     for col in bio_cols:
-        if col in df_eda.columns:
+        if col in df_cluster.columns:
             df_cluster[col] = pd.to_numeric(df_cluster[col], errors="coerce")
             bio_means[col] = df_cluster[col].mean()
 
@@ -138,5 +138,6 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
 
 
