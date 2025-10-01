@@ -9,6 +9,7 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import seaborn as sns
 import matplotlib.pyplot as plt
+import plotly
 
 def show_dashboard():
     st.set_page_config(page_title="Tableau de bord USAD Drépanocytose", layout="wide")
@@ -21,18 +22,21 @@ def show_dashboard():
     df_cluster = pd.read_excel("segmentation.xlsx")
 
     # ============================
-    # Indicateurs clés en haut
+    # Indicateurs clés colorés
     # ============================
     total_patients = df_cluster.shape[0]
-    urgences_total = df_eda.shape[0]  # lignes du fichier nettoyé
+    urgences_total = df_eda.shape[0]
     evolution_favorable = round(df_eda['Evolution'].value_counts(normalize=True).get('Favorable',0)*100,1)
     complications = round(df_eda['Evolution'].value_counts(normalize=True).get('Complications',0)*100,1)
 
+    # Couleurs custom
+    colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728"]
+
     cols = st.columns(4)
-    cols[0].metric("Patients Total / Suivis 2023", total_patients)
-    cols[1].metric("Urgences Total", urgences_total)
-    cols[2].metric("Évolution Favorable (%)", evolution_favorable)
-    cols[3].metric("Complications (%)", complications)
+    cols[0].markdown(f"<div style='background-color:{colors[0]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Patients Total / Suivis 2023</h4><h2>{total_patients}</h2></div>", unsafe_allow_html=True)
+    cols[1].markdown(f"<div style='background-color:{colors[1]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Urgences Total</h4><h2>{urgences_total}</h2></div>", unsafe_allow_html=True)
+    cols[2].markdown(f"<div style='background-color:{colors[2]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Évolution Favorable (%)</h4><h2>{evolution_favorable}</h2></div>", unsafe_allow_html=True)
+    cols[3].markdown(f"<div style='background-color:{colors[3]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Complications (%)</h4><h2>{complications}</h2></div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -55,7 +59,7 @@ def show_dashboard():
                      title="Répartition par type de drépanocytose")
         plots.append(fig)
 
-    # Temporel - nombre de consultations par mois
+    # Temporel - consultations par mois
     if 'Mois' in df_eda.columns:
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
                       "Septembre","Octobre","Novembre","Décembre"]
@@ -72,13 +76,13 @@ def show_dashboard():
                       title="Évolution des diagnostics par mois")
         plots.append(fig)
 
-    # Affichage des graphiques 2 par ligne
+    # Affichage 2 graphiques par ligne
     for i in range(0, len(plots), 2):
         cols_graph = st.columns(2)
         for j, col in enumerate(cols_graph):
             if i+j < len(plots):
                 plot = plots[i+j]
-                if isinstance(plot, (px.Figure, go.Figure)):
+                if isinstance(plot, plotly.graph_objs._figure.Figure):
                     col.plotly_chart(plot, use_container_width=True)
                 elif isinstance(plot, Figure):
                     col.pyplot(plot)
@@ -86,7 +90,7 @@ def show_dashboard():
     st.markdown("---")
 
     # ============================
-    # Biomarqueurs - Moyennes
+    # Moyennes biomarqueurs
     # ============================
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
