@@ -43,7 +43,7 @@ def concat_dates_urgences(feuilles):
 # Page Streamlit
 # ============================
 def show_eda():
-    st.title("📊 Analyse exploratoire des données")
+    st.title("Analyse exploratoire des données")
     file_path = "Base_de_donnees_USAD_URGENCES1.xlsx"
 
     try:
@@ -196,3 +196,4 @@ def show_eda():
                             st.table(stats_group)
         except FileNotFoundError:
             st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
+
