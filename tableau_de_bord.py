@@ -131,7 +131,7 @@ def show_dashboard():
 
     if bio_means:
         cols = st.columns(len(bio_means))
-        colors = ["#FF9999","#66B2FF","#99FF99","#FFCC99","#FFD700","#FFB6C1"]
+        colors = [""]
         for (name, val), col, color in zip(bio_means.items(), cols, colors):
             with col:
                 st.markdown(
@@ -149,3 +149,4 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
