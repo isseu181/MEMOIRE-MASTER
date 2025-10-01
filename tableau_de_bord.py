@@ -38,8 +38,8 @@ def show_dashboard():
     complications = 100 - evolution_fav if evolution_fav is not None else None
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Patients Total", total_patients)
-    col2.metric("Urgences Total", total_urgences)
+    col1.metric("Patients Total", total_patients, "↗ Suivis 2023")
+    col2.metric("Urgences Total", total_urgences, "↗ Consultations")
     col3.metric("Évolution Favorable", f"{evolution_fav:.1f}%" if evolution_fav else "N/A")
     col4.metric("Complications", f"{complications:.1f}%" if complications else "N/A")
 
@@ -69,9 +69,9 @@ def show_dashboard():
                      title="Répartition des diagnostics")
         plots.append(fig)
 
-    # 4. Type de drépanocytose
-    if "Type_Drépanocytose" in df_eda.columns:
-        type_counts = df_eda["Type_Drépanocytose"].value_counts()
+    # 4. Type de drépanocytose (depuis segmentation)
+    if df_cluster is not None and "Type de drépanocytose" in df_cluster.columns:
+        type_counts = df_cluster["Type de drépanocytose"].value_counts()
         fig = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
                      title="Répartition des types de drépanocytose")
         plots.append(fig)
@@ -90,8 +90,6 @@ def show_dashboard():
     # 6. Courbe empilée diagnostics par mois
     if "Mois" in df_eda.columns and "Diagnostic Catégorisé" in df_eda.columns:
         mois_diag = df_eda.groupby(["Mois","Diagnostic Catégorisé"]).size().reset_index(name="Count")
-        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet",
-                      "Aout","Septembre","Octobre","Novembre","Décembre"]
         mois_diag["Mois"] = pd.Categorical(mois_diag["Mois"], categories=mois_ordre, ordered=True)
         fig = px.area(mois_diag, x="Mois", y="Count", color="Diagnostic Catégorisé",
                       title="Évolution des diagnostics par mois")
@@ -117,7 +115,7 @@ def show_dashboard():
                 col.plotly_chart(plots[i+j], use_container_width=True)
 
     # ============================
-    # BIOMARQUEURS EN CARTES
+    # BIOMARQUEURS EN CARTES SIMPLES
     # ============================
     st.subheader("🧪 Moyennes des biomarqueurs")
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
@@ -131,22 +129,12 @@ def show_dashboard():
 
     if bio_means:
         cols = st.columns(len(bio_means))
-        colors = [""]
-        for (name, val), col, color in zip(bio_means.items(), cols, colors):
+        for (name, val), col in zip(bio_means.items(), cols):
             with col:
-                st.markdown(
-                    f"""
-                    <div style="background-color:{color};padding:12px;border-radius:10px;text-align:center">
-                        <h4 style="margin:0;font-size:13px">{name}</h4>
-                        <h2 style="margin:0">{val:.2f}</h2>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                st.metric(name, f"{val:.2f}")
 
 # ============================
 # EXECUTION DU DASHBOARD
 # ============================
 if __name__ == "__main__":
     show_dashboard()
-
