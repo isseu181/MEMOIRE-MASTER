@@ -49,15 +49,15 @@ def show_dashboard():
     plots = []
 
     # 1. Répartition par sexe
-    if "Sexe" in df_eda.columns:
-        sexe_counts = df_eda["Sexe"].value_counts()
+    if "Sexe" in df_cluster.columns:
+        sexe_counts = df_cluster["Sexe"].value_counts()
         fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
                      title="Répartition par sexe")
         plots.append(fig)
 
     # 2. Origine géographique
-    if "Origine Géographique" in df_eda.columns:
-        origine_counts = df_eda["Origine Géographique"].value_counts()
+    if "Origine Géographique" in df_cluster.columns:
+        origine_counts = df_cluster["Origine Géographique"].value_counts()
         fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
                      title="Répartition par origine géographique")
         plots.append(fig)
@@ -96,8 +96,8 @@ def show_dashboard():
         plots.append(fig)
 
     # 7. Analyse bivariée : Sexe vs Évolution
-    if "Sexe" in df_eda.columns and "Evolution" in df_eda.columns:
-        cross_tab = pd.crosstab(df_eda["Sexe"], df_eda["Evolution"], normalize="index")*100
+    if "Sexe" in df_cluster.columns and "Evolution" in df_eda.columns:
+        cross_tab = pd.crosstab(df_cluster["Sexe"], df_eda["Evolution"], normalize="index")*100
         fig = px.bar(cross_tab, barmode="group", title="Sexe vs Évolution (%)")
         plots.append(fig)
 
@@ -138,3 +138,4 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
