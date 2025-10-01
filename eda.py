@@ -50,6 +50,7 @@ def show_eda():
     # ============================
     with onglets[0]:
         st.header("1️⃣ Données démographiques")
+        # Sexe
         if 'Sexe' in df_nettoye.columns:
             sexe_counts = df_nettoye['Sexe'].value_counts()
             fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
@@ -57,6 +58,7 @@ def show_eda():
             fig.update_traces(textinfo='percent+label', pull=0.05)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Origine géographique
         if 'Origine Géographique' in df_nettoye.columns:
             origine_counts = df_nettoye['Origine Géographique'].value_counts()
             fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
@@ -64,6 +66,7 @@ def show_eda():
             fig.update_traces(textinfo='percent+label', pull=0.05)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Scolarité
         if "Niveau d'instruction scolarité" in df_nettoye.columns:
             scolar_counts = df_nettoye["Niveau d'instruction scolarité"].value_counts()
             fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
@@ -71,6 +74,7 @@ def show_eda():
             fig.update_traces(textinfo='percent+label', pull=0.05)
             st.plotly_chart(fig, use_container_width=True)
 
+        # Âge
         age_col = "Âge du debut d etude en mois (en janvier 2023)"
         if age_col in df_nettoye.columns:
             df_nettoye[age_col] = pd.to_numeric(df_nettoye[age_col], errors='coerce')
@@ -85,6 +89,8 @@ def show_eda():
     # ============================
     with onglets[1]:
         st.header("2️⃣ Données cliniques")
+
+        # Type de drépanocytose
         if 'Type de drépanocytose' in df_nettoye.columns:
             type_counts = df_nettoye['Type de drépanocytose'].value_counts()
             fig = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
@@ -104,7 +110,8 @@ def show_eda():
                 st.plotly_chart(fig, use_container_width=True)
 
         # Analyse bivariée quantitatives vs Evolution
-        quantitative_vars = ["Âge du debut d etude en mois (en janvier 2023)", "GR (/mm3)","GB (/mm3)","HB (g/dl)"]
+        quantitative_vars = ["Âge du debut d etude en mois (en janvier 2023)", 
+                             "GR (/mm3)","GB (/mm3)","HB (g/dl)"]
         for var in quantitative_vars:
             if var in df_nettoye.columns and cible in df_nettoye.columns:
                 st.subheader(f"{var} vs {cible}")
@@ -116,13 +123,40 @@ def show_eda():
     # ============================
     with onglets[2]:
         st.header("3️⃣ Analyse temporelle")
-        if 'Mois' in df_nettoye.columns:
-            mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                          "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
-            mois_counts = df_nettoye['Mois'].value_counts().reindex(mois_ordre).fillna(0)
-            fig = px.line(x=mois_counts.index, y=mois_counts.values,
-                          labels={"x":"Mois","y":"Nombre de consultations"},
-                          title="Répartition mensuelle des urgences", markers=True)
+
+        # Définir l'ordre chronologique des mois
+        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+
+        # Affichage des diagnostics par mois
+        if 'Mois' in df_nettoye.columns and 'Diagnostic Catégorisé' in df_nettoye.columns:
+            diag_mois = df_nettoye.groupby(['Mois','Diagnostic Catégorisé']).size().reset_index(name='Nombre')
+            diag_mois['Mois'] = pd.Categorical(diag_mois['Mois'], categories=mois_ordre, ordered=True)
+            diag_mois = diag_mois.sort_values('Mois')
+            st.subheader("Évolution mensuelle des diagnostics")
+            fig = px.line(diag_mois, x='Mois', y='Nombre', color='Diagnostic Catégorisé',
+                          markers=True, title="Diagnostics par mois")
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Nombre de consultations par urgence (Urgence1 à Urgence6)
+        urgences = [f'Urgence{i}' for i in range(1,7)]
+        consultations_par_urgence = {}
+        for urg in urgences:
+            if urg in df_nettoye.columns:
+                df_urg = df_nettoye[[urg,'Mois']].dropna()
+                df_urg['Mois'] = pd.Categorical(df_urg['Mois'], categories=mois_ordre, ordered=True)
+                mois_counts = df_urg.groupby('Mois')[urg].count()
+                consultations_par_urgence[urg] = mois_counts
+
+        if consultations_par_urgence:
+            temp_df = pd.DataFrame(consultations_par_urgence).fillna(0).astype(int)
+            temp_df.index.name = "Mois"
+            st.subheader("Nombre de consultations par urgence")
+            st.dataframe(temp_df)
+            fig = px.line(temp_df, x=temp_df.index, y=temp_df.columns,
+                          labels={"value":"Nombre de consultations","Mois":"Mois"},
+                          title="Évolution mensuelle des consultations par Urgence",
+                          markers=True)
             st.plotly_chart(fig, use_container_width=True)
 
     # ============================
