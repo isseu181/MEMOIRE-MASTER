@@ -56,7 +56,7 @@ def show_eda():
     with onglets[0]:
         st.header("1️⃣ Données démographiques")
 
-        # Sexe (utiliser segmentation si dispo)
+        # Sexe
         if "Sexe" in df_seg.columns:
             sexe_counts = df_seg["Sexe"].value_counts()
             fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
@@ -78,16 +78,6 @@ def show_eda():
             fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
                          title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
             fig.update_traces(textinfo="percent+label", pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Âge inclusion
-        age_col = "Âge du debut d etude en mois (en janvier 2023)"
-        if age_col in df_seg.columns:
-            df_nettoye[age_col] = pd.to_numeric(df_seg[age_col], errors="coerce")
-            fig = px.histogram(df_seg, x=age_col, nbins=15,
-                               title="Répartition des âges à l’inclusion",
-                               color_discrete_sequence=["#2E86C1"])
-            fig.update_traces(texttemplate="%{y}", textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
 
     # ============================
@@ -119,7 +109,6 @@ def show_eda():
     # ============================
     with onglets[2]:
         st.header("3️⃣ Analyse temporelle")
-
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
                       "Juillet","Aout","Septembre","Octobre","Novembre","Décembre"]
 
@@ -127,9 +116,18 @@ def show_eda():
         if "Mois" in df_nettoye.columns and "Diagnostic Catégorisé" in df_nettoye.columns:
             diag_mois = df_nettoye.groupby(["Mois","Diagnostic Catégorisé"]).size().reset_index(name="Nombre")
             diag_mois["Mois"] = pd.Categorical(diag_mois["Mois"], categories=mois_ordre, ordered=True)
+            diag_mois = diag_mois.sort_values("Mois")
             fig_diag = px.line(diag_mois, x="Mois", y="Nombre", color="Diagnostic Catégorisé",
                                markers=True, title="Diagnostics par mois")
             st.plotly_chart(fig_diag, use_container_width=True)
+
+        # Consultations par mois
+        if "Mois" in df_nettoye.columns:
+            df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
+            mois_counts = df_nettoye.groupby("Mois").size().reset_index(name="Nombre")
+            fig_mois = px.line(mois_counts, x="Mois", y="Nombre", markers=True,
+                               title="Consultations totales par mois")
+            st.plotly_chart(fig_mois, use_container_width=True)
 
         # Consultations par urgence
         urgences = [f"Urgence{i}" for i in range(1,7)]
@@ -142,14 +140,6 @@ def show_eda():
                              title="Nombre de consultations par Urgence")
             st.plotly_chart(fig_urg, use_container_width=True)
 
-        # Consultations par mois
-        if "Mois" in df_nettoye.columns:
-            df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
-            mois_counts = df_nettoye.groupby("Mois").size()
-            fig_mois = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
-                               title="Consultations totales par mois")
-            st.plotly_chart(fig_mois, use_container_width=True)
-
     # ============================
     # Onglet Biomarqueurs
     # ============================
@@ -159,7 +149,7 @@ def show_eda():
                     "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
         bio_data = {}
         for col in bio_cols:
-            if col in df_nettoye.columns:
+            if col in df_seg.columns:
                 df_seg[col] = pd.to_numeric(df_seg[col], errors="coerce")
                 bio_data[col] = {
                     "Moyenne": df_seg[col].mean(),
