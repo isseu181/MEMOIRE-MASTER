@@ -50,7 +50,6 @@ def show_eda():
     # ============================
     with onglets[0]:
         st.header("1️⃣ Données démographiques")
-
         # Sexe
         if 'Sexe' in df_nettoye.columns:
             sexe_counts = df_nettoye['Sexe'].value_counts()
@@ -146,24 +145,29 @@ def show_eda():
         # ----------------------------
         urgences = [f'Urgence{i}' for i in range(1,7)]
         consultations_par_urgence = {}
-
         for urg in urgences:
             if urg in df_nettoye.columns:
-                df_urg = df_nettoye[[urg,'Mois']].dropna()
-                df_urg['Mois'] = pd.Categorical(df_urg['Mois'], categories=mois_ordre, ordered=True)
-                mois_counts = df_urg.groupby('Mois')[urg].count()
-                consultations_par_urgence[urg] = mois_counts
-
+                consultations_par_urgence[urg] = df_nettoye[urg].notna().sum()
         if consultations_par_urgence:
-            temp_df = pd.DataFrame(consultations_par_urgence).fillna(0).astype(int)
-            temp_df.index.name = "Mois"
-            st.subheader("Nombre de consultations par urgence")
-            st.dataframe(temp_df)
-            fig_urg = px.line(temp_df, x=temp_df.index, y=temp_df.columns,
-                              labels={"value":"Nombre de consultations","Mois":"Mois"},
-                              title="Évolution mensuelle des consultations par Urgence",
-                              markers=True)
+            st.subheader("Nombre total de consultations par urgence")
+            df_urg_tot = pd.DataFrame.from_dict(consultations_par_urgence, orient='index', columns=['Nombre'])
+            st.dataframe(df_urg_tot.astype(int))
+            fig_urg = px.bar(df_urg_tot, x=df_urg_tot.index, y='Nombre', text='Nombre',
+                             title="Nombre de consultations par Urgence")
             st.plotly_chart(fig_urg, use_container_width=True)
+
+        # ----------------------------
+        # Graphique 3 : Nombre de consultations par mois
+        # ----------------------------
+        if 'Mois' in df_nettoye.columns:
+            df_nettoye['Mois'] = pd.Categorical(df_nettoye['Mois'], categories=mois_ordre, ordered=True)
+            mois_counts = df_nettoye.groupby('Mois').size()
+            st.subheader("Nombre total de consultations par mois")
+            df_mois_tot = pd.DataFrame({'Mois': mois_counts.index, 'Nombre': mois_counts.values})
+            st.dataframe(df_mois_tot)
+            fig_mois = px.line(df_mois_tot, x='Mois', y='Nombre', markers=True,
+                               title="Évolution totale des consultations par mois")
+            st.plotly_chart(fig_mois, use_container_width=True)
 
     # ============================
     # Onglet Biomarqueurs
