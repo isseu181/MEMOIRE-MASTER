@@ -158,10 +158,4 @@ def show_dashboard():
         sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
         st.pyplot(fig)
 
-        # Profil détaillé
-        st.subheader("Profil des clusters")
-        cluster_counts = df_cluster['Cluster'].value_counts().sort_index()
-        st.dataframe(cluster_counts.rename("Nombre de patients"))
-        cluster_means = df_cluster.groupby('Cluster')[quantitative_vars].mean()
-        st.dataframe(cluster_means.round(2))
-
+       
