@@ -27,7 +27,6 @@ def convertir_df_oui_non(df, exclude_columns=None):
     return df
 
 def concat_dates_urgences(feuilles):
-    """Concatène toutes les dates des urgences dans une seule série."""
     toutes_dates = pd.Series(dtype='datetime64[ns]')
     for i in range(1,7):
         nom = f'Urgence{i}'
@@ -55,9 +54,9 @@ def show_eda():
         return
 
     # ============================
-    # Onglets Streamlit
+    # Onglets horizontaux (menu)
     # ============================
-    onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs"])
+    onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs", "Analyse bivariée"])
 
     # ============================
     # Onglet 1 : Démographique
@@ -74,7 +73,6 @@ def show_eda():
                 sexe_counts = identite['Sexe'].value_counts()
                 fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
                              title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
-                fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
             # Origine géographique
@@ -82,7 +80,6 @@ def show_eda():
                 origine_counts = identite['Origine Géographique'].value_counts()
                 fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
                              title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
-                fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
             # Scolarité
@@ -90,7 +87,6 @@ def show_eda():
                 scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
                 fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
                              title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
-                fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
             # Âge
@@ -100,14 +96,13 @@ def show_eda():
                 fig = px.histogram(identite, x=age_col, nbins=15,
                                    title="Répartition des âges à l’inclusion",
                                    color_discrete_sequence=["#2E86C1"])
-                fig.update_traces(texttemplate="%{y}", textposition="outside")
                 st.plotly_chart(fig, use_container_width=True)
 
     # ============================
     # Onglet 2 : Clinique
     # ============================
     with onglets[1]:
-        st.header("2️⃣ Données cliniques et consultations d'urgence")
+        st.header("2️⃣ Données cliniques")
         symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
         for i in range(1,7):
             nom = f'Urgence{i}'
@@ -171,5 +166,33 @@ def show_eda():
             if stats_data:
                 stats_df = pd.DataFrame(stats_data).T.round(2)
                 st.table(stats_df)
+        except FileNotFoundError:
+            st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
+
+    # ============================
+    # Onglet 5 : Analyse bivariée
+    # ============================
+    with onglets[4]:
+        st.header("5️⃣ Analyse bivariée : Evolution vs autres variables")
+        try:
+            df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
+            cible = "Evolution"
+            if cible in df_nettoye.columns:
+                variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
+                             "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
+
+                for var in variables:
+                    if var in df_nettoye.columns:
+                        st.subheader(f"{var} vs {cible}")
+
+                        if df_nettoye[var].dtype=="object":
+                            cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
+                            st.dataframe(cross_tab.round(2))
+                            fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
+                                         title=f"{var} vs {cible}")
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
+                            st.table(stats_group)
         except FileNotFoundError:
             st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
