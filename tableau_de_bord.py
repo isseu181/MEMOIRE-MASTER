@@ -1,4 +1,4 @@
-# tableau_de_bord.py
+# tableau_de_bord_final.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-import numpy as np
 
 def show_dashboard():
     st.set_page_config(page_title="Tableau de bord Drépanocytose", layout="wide")
@@ -146,7 +145,7 @@ def show_dashboard():
             title, value = col_name
             cols[j].markdown(f"""
                 <div style="
-                    background-color:#1f77b4;
+                    background-color:#17becf;
                     color:white;
                     text-align:center;
                     padding:15px;
