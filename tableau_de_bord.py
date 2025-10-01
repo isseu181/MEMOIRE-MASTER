@@ -66,7 +66,7 @@ def show_dashboard():
     if 'Diagnostic Catégorisé' in df_eda.columns:
         diag_counts = df_eda['Diagnostic Catégorisé'].value_counts()
         fig = px.pie(diag_counts, names=diag_counts.index, values=diag_counts.values,
-                     title="Répartition par Type de Drépanocytose")
+                     title="Répartition par Diagnostic")
         plots.append(fig)
 
     # Nombre de consultations par urgence
@@ -183,3 +183,4 @@ def show_dashboard():
     st.dataframe(cluster_counts.rename("Nombre de Patients"))
     cluster_means = pd.DataFrame(df_cluster.groupby('Cluster')[quantitative_vars].mean())
     st.dataframe(cluster_means.round(2))
+
