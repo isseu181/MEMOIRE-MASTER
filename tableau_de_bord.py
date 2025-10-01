@@ -26,108 +26,107 @@ except:
     df_cluster = None
 
 # ============================
-# Indicateurs clés
+# Indicateurs clés en cartes colorées
 # ============================
 st.markdown("## Tableau de bord USAD")
-col1, col2, col3, col4 = st.columns(4)
 
+col1, col2, col3, col4 = st.columns(4)
 with col1:
     patients_total = df_cluster.shape[0] if df_cluster is not None else df_eda.shape[0]
-    st.metric("Patients Total / Suivis 2023", patients_total)
+    st.markdown(f"<div style='background-color:#1f77b4;padding:15px;border-radius:10px;color:white;text-align:center;'>"
+                f"<h4>Patients Total / Suivis 2023</h4><h2>{patients_total}</h2></div>", unsafe_allow_html=True)
 
 with col2:
     urgences_total = df_eda.shape[0]
-    st.metric("Urgences Total", urgences_total)
+    st.markdown(f"<div style='background-color:#ff7f0e;padding:15px;border-radius:10px;color:white;text-align:center;'>"
+                f"<h4>Urgences Total</h4><h2>{urgences_total}</h2></div>", unsafe_allow_html=True)
 
 with col3:
     evolution_favorable = round(df_eda['Evolution'].value_counts(normalize=True).get('Favorable',0)*100,1)
-    st.metric("Évolution Favorable", f"{evolution_favorable}%")
+    st.markdown(f"<div style='background-color:#2ca02c;padding:15px;border-radius:10px;color:white;text-align:center;'>"
+                f"<h4>Évolution Favorable</h4><h2>{evolution_favorable}%</h2></div>", unsafe_allow_html=True)
 
 with col4:
     complications = round(df_eda['Evolution'].value_counts(normalize=True).get('Complications',0)*100,1)
-    st.metric("Complications", f"{complications}%")
+    st.markdown(f"<div style='background-color:#d62728;padding:15px;border-radius:10px;color:white;text-align:center;'>"
+                f"<h4>Complications</h4><h2>{complications}%</h2></div>", unsafe_allow_html=True)
 
 st.markdown("---")
 
 # ============================
-# Graphiques Démographiques
+# Graphiques en grille
 # ============================
-st.header("📊 Données Démographiques")
-graph_height = 400  # Hauteur uniforme pour tous les graphes
+st.header("📊 Visualisations principales")
+graph_height = 400
 
-# Sexe
-if 'Sexe' in df_eda.columns:
-    sexe_counts = df_eda['Sexe'].value_counts()
-    fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                 title="Répartition par sexe", height=graph_height)
-    st.plotly_chart(fig, use_container_width=True)
+# Utilisation de deux colonnes pour la grille
+colA, colB = st.columns(2)
 
-# Origine Géographique
-if 'Origine Géographique' in df_eda.columns:
-    origine_counts = df_eda['Origine Géographique'].value_counts()
-    fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                 title="Répartition par origine géographique", height=graph_height)
-    st.plotly_chart(fig, use_container_width=True)
+with colA:
+    # Sexe
+    if 'Sexe' in df_eda.columns:
+        sexe_counts = df_eda['Sexe'].value_counts()
+        fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
+                     title="Répartition par sexe", height=graph_height)
+        st.plotly_chart(fig, use_container_width=True)
 
-# Âge
-age_col = "Âge du debut d etude en mois (en janvier 2023)"
-if age_col in df_eda.columns:
-    df_eda[age_col] = pd.to_numeric(df_eda[age_col], errors='coerce')
-    fig = px.histogram(df_eda, x=age_col, nbins=15, title="Répartition des âges à l’inclusion",
-                       height=graph_height)
-    st.plotly_chart(fig, use_container_width=True)
+    # Biomarqueurs (tableau uniquement)
+    bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C", "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+    bio_data = {}
+    for col in bio_cols:
+        if col in df_eda.columns:
+            df_eda[col] = pd.to_numeric(df_eda[col], errors='coerce')
+            bio_data[col] = {
+                "Moyenne": round(df_eda[col].mean(),2),
+                "Médiane": round(df_eda[col].median(),2),
+                "Min": round(df_eda[col].min(),2),
+                "Max": round(df_eda[col].max(),2)
+            }
+    if bio_data:
+        st.subheader("Biomarqueurs - statistiques descriptives")
+        st.table(pd.DataFrame(bio_data).T)
+
+with colB:
+    # Origine géographique
+    if 'Origine Géographique' in df_eda.columns:
+        origine_counts = df_eda['Origine Géographique'].value_counts()
+        fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
+                     title="Répartition par origine géographique", height=graph_height)
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Âge
+    age_col = "Âge du debut d etude en mois (en janvier 2023)"
+    if age_col in df_eda.columns:
+        df_eda[age_col] = pd.to_numeric(df_eda[age_col], errors='coerce')
+        fig = px.histogram(df_eda, x=age_col, nbins=15, title="Répartition des âges à l’inclusion",
+                           height=graph_height)
+        st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 
 # ============================
-# Graphiques Cliniques & Biomarqueurs
-# ============================
-st.header("💉 Données Cliniques & Biomarqueurs")
-
-# Sexe vs Evolution
-if 'Sexe' in df_eda.columns and 'Evolution' in df_eda.columns:
-    cross_tab = pd.crosstab(df_eda['Sexe'], df_eda['Evolution'], normalize='index')*100
-    fig = px.bar(cross_tab, barmode="group", text_auto=".1f", title="Sexe vs Evolution",
-                 height=graph_height)
-    st.plotly_chart(fig, use_container_width=True)
-
-# Biomarqueurs : tableau descriptif
-bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C", "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-bio_data = {}
-for col in bio_cols:
-    if col in df_eda.columns:
-        df_eda[col] = pd.to_numeric(df_eda[col], errors='coerce')
-        bio_data[col] = {
-            "Moyenne": round(df_eda[col].mean(),2),
-            "Médiane": round(df_eda[col].median(),2),
-            "Min": round(df_eda[col].min(),2),
-            "Max": round(df_eda[col].max(),2)
-        }
-if bio_data:
-    st.subheader("Biomarqueurs - statistiques descriptives")
-    st.table(pd.DataFrame(bio_data).T)
-
-st.markdown("---")
-
-# ============================
-# Graphiques Temporels
+# Temporel
 # ============================
 st.header("📅 Analyse Temporelle")
+col1, col2 = st.columns(2)
 
-# Nombre de consultations par mois
-if 'Mois' in df_eda.columns:
-    mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
-    df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
-    mois_counts = df_eda['Mois'].value_counts().sort_index()
-    fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True, title="Nombre de consultations par mois",
-                  height=graph_height)
-    st.plotly_chart(fig, use_container_width=True)
+with col1:
+    # Consultations par mois
+    if 'Mois' in df_eda.columns:
+        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
+                      "Septembre","Octobre","Novembre","Décembre"]
+        df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
+        mois_counts = df_eda['Mois'].value_counts().sort_index()
+        fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
+                      title="Nombre de consultations par mois", height=graph_height)
+        st.plotly_chart(fig, use_container_width=True)
 
+with col2:
     # Diagnostics par mois
-    if 'Diagnostic Catégorisé' in df_eda.columns:
+    if 'Mois' in df_eda.columns and 'Diagnostic Catégorisé' in df_eda.columns:
         diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
-        fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True, title="Diagnostics par mois",
-                      height=graph_height)
+        fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
+                      title="Diagnostics par mois", height=graph_height)
         st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
@@ -160,7 +159,6 @@ if df_cluster is not None:
     ax.set_title("Clusters PCA 2D", fontsize=14)
     st.pyplot(fig)
 
-    # Profil détaillé
     st.subheader("Profil des clusters")
     cluster_counts = df_cluster['Cluster'].value_counts().sort_index()
     st.dataframe(cluster_counts.rename("Nombre de patients"))
