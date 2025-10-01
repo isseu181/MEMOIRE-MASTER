@@ -124,8 +124,8 @@ def show_dashboard():
     bio_means = {}
     for col in bio_cols:
         if col in df_eda.columns:
-            df_eda[col] = pd.to_numeric(df_eda[col], errors="coerce")
-            bio_means[col] = df_eda[col].mean()
+            df_cluster[col] = pd.to_numeric(df_cluster[col], errors="coerce")
+            bio_means[col] = df_cluster[col].mean()
 
     if bio_means:
         cols = st.columns(len(bio_means))
@@ -138,4 +138,5 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
 
