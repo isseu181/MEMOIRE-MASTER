@@ -1,3 +1,4 @@
+# tableau_de_bord.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -48,14 +49,14 @@ def show_dashboard():
     # ============================
     plots = []
 
-    # Sexe
+    # Répartition par sexe
     if "Sexe" in df_eda.columns:
         sexe_counts = df_eda["Sexe"].value_counts()
         fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
                      title="Répartition par sexe")
         plots.append(fig)
 
-    # Origine géographique
+    # Répartition par origine géographique
     if "Origine Géographique" in df_eda.columns:
         origine_counts = df_eda["Origine Géographique"].value_counts()
         fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
@@ -81,9 +82,21 @@ def show_dashboard():
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet",
                       "Aout","Septembre","Octobre","Novembre","Décembre"]
         df_eda["Mois"] = pd.Categorical(df_eda["Mois"], categories=mois_ordre, ordered=True)
-        mois_counts = df_eda["Mois"].value_counts().sort_index()
+
+        mois_counts = df_eda.groupby("Mois").size().reindex(mois_ordre)
+
         fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
+                      labels={"x":"Mois", "y":"Nombre de consultations"},
                       title="Nombre de consultations par mois")
+        plots.append(fig)
+
+    # Courbe empilée : diagnostics par mois
+    if "Mois" in df_eda.columns and "Diagnostic Catégorisé" in df_eda.columns:
+        mois_diag = df_eda.groupby(["Mois","Diagnostic Catégorisé"]).size().reset_index(name="Count")
+        mois_diag["Mois"] = pd.Categorical(mois_diag["Mois"], categories=mois_ordre, ordered=True)
+
+        fig = px.area(mois_diag, x="Mois", y="Count", color="Diagnostic Catégorisé",
+                      title="Évolution des diagnostics par mois")
         plots.append(fig)
 
     # ============================
@@ -100,7 +113,7 @@ def show_dashboard():
         plots.append(fig)
 
     # ============================
-    # AFFICHAGE DES GRAPHIQUES 2 PAR LIGNE
+    # AFFICHAGE DES GRAPHIQUES (2 PAR LIGNE)
     # ============================
     for i in range(0, len(plots), 2):
         cols = st.columns(2)
@@ -123,12 +136,21 @@ def show_dashboard():
 
     if bio_means:
         cols = st.columns(len(bio_means))
-        for (name, val), col in zip(bio_means.items(), cols):
-            col.metric(name, f"{val:.2f}")
+        colors = ["#FF9999","#66B2FF","#99FF99","#FFCC99","#FFD700","#FFB6C1"]
+        for (name, val), col, color in zip(bio_means.items(), cols, colors):
+            with col:
+                st.markdown(
+                    f"""
+                    <div style="background-color:{color};padding:15px;border-radius:10px;text-align:center">
+                        <h4 style="margin:0;font-size:14px">{name}</h4>
+                        <h2 style="margin:0">{val:.2f}</h2>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
 # ============================
 # EXECUTION DU DASHBOARD
 # ============================
 if __name__ == "__main__":
     show_dashboard()
-
