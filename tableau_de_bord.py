@@ -23,7 +23,7 @@ def show_dashboard():
         df_cluster = None
 
     # ============================
-    # Indicateurs colorés
+    # Indicateurs colorés en haut
     # ============================
     patients_total = len(df_cluster) if df_cluster is not None else len(df_eda)
     urgences_total = df_eda.shape[0]
@@ -44,9 +44,9 @@ def show_dashboard():
                 background-color:{color};
                 color:white;
                 text-align:center;
-                padding:15px;
+                padding:20px;
                 border-radius:10px;
-                font-size:18px;
+                font-size:20px;
             ">
                 <strong>{value}</strong><br>{title}
             </div>
@@ -55,9 +55,8 @@ def show_dashboard():
     st.markdown("---")
 
     # ============================
-    # Graphiques en grille 2 par ligne
+    # Graphiques en grille (2 par ligne)
     # ============================
-    # Préparer la liste des graphiques à afficher
     plots = []
 
     # Sexe vs Evolution
@@ -72,6 +71,7 @@ def show_dashboard():
         type_counts = df_eda['Type de drépanocytose'].value_counts()
         fig2 = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
                       title="Répartition par type de drépanocytose")
+        fig2.update_layout(height=400)
         plots.append(fig2)
 
     # Nombre de consultations par mois
@@ -111,30 +111,48 @@ def show_dashboard():
         plots.append(fig5)
 
     # ============================
-    # Affichage en grille (2 par ligne)
+    # Affichage des graphiques en grille 2 par ligne
     # ============================
     for i in range(0, len(plots), 2):
         cols = st.columns(2)
         for j, col in enumerate(cols):
             if i+j < len(plots):
-                col.plotly_chart(plots[i+j], use_container_width=True) if isinstance(plots[i+j], px.Figure) else col.pyplot(plots[i+j])
+                plot = plots[i+j]
+                if isinstance(plot, px.Figure):
+                    col.plotly_chart(plot, use_container_width=True)
+                else:
+                    col.pyplot(plot)
+
+    st.markdown("---")
 
     # ============================
-    # Biomarqueurs en tableau
+    # Biomarqueurs - cartes avec moyennes
     # ============================
+    st.subheader("Moyennes des biomarqueurs")
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+
     bio_data = {}
     for col in bio_cols:
         if col in df_eda.columns:
             df_eda[col] = pd.to_numeric(df_eda[col], errors='coerce')
-            bio_data[col] = {
-                "Moyenne": round(df_eda[col].mean(),2),
-                "Médiane": round(df_eda[col].median(),2),
-                "Min": round(df_eda[col].min(),2),
-                "Max": round(df_eda[col].max(),2)
-            }
-    if bio_data:
-        bio_df = pd.DataFrame(bio_data).T
-        st.subheader("Moyennes des biomarqueurs")
-        st.table(bio_df)
+            bio_data[col] = round(df_eda[col].mean(), 2)
+
+    bio_cols_split = list(bio_data.items())
+    n_cols = 3
+    for i in range(0, len(bio_cols_split), n_cols):
+        cols = st.columns(n_cols)
+        for j, col_name in enumerate(bio_cols_split[i:i+n_cols]):
+            title, value = col_name
+            cols[j].markdown(f"""
+                <div style="
+                    background-color:#1f77b4;
+                    color:white;
+                    text-align:center;
+                    padding:15px;
+                    border-radius:10px;
+                    font-size:18px;
+                ">
+                    <strong>{value}</strong><br>{title}
+                </div>
+            """, unsafe_allow_html=True)
