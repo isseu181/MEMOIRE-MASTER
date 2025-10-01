@@ -1,174 +1,191 @@
-# tableau_de_bord.py
+# eda.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
-import seaborn as sns
+import warnings
 
-def show_dashboard():
-    st.set_page_config(page_title="Tableau de bord - Mémoire", layout="wide")
+warnings.filterwarnings("ignore")
 
-    # ============================
-    # Chargement des données
-    # ============================
+# ============================
+# Fonctions utilitaires
+# ============================
+def oui_non_vers_binaire(valeur):
+    if isinstance(valeur, str) and valeur.strip().lower() in ["oui", "o"]:
+        return 1
+    elif isinstance(valeur, str) and valeur.strip().lower() in ["non", "n"]:
+        return 0
+    return valeur
+
+def convertir_df_oui_non(df, exclude_columns=None):
+    df = df.copy()
+    exclude_columns = exclude_columns or []
+    for col in df.columns:
+        if col not in exclude_columns and df[col].isin(
+            ["Oui", "Non", "OUI", "NON", "oui", "non", "O", "N"]
+        ).any():
+            df[col] = df[col].apply(oui_non_vers_binaire)
+    return df
+
+# ============================
+# Page Streamlit
+# ============================
+def show_eda():
+    st.title("📊 Analyse exploratoire des données")
+    file_path = "fichier_nettoye.xlsx"
+
     try:
-        df_eda = pd.read_excel("fichier_nettoye.xlsx")
+        df_nettoye = pd.read_excel(file_path)
+        st.success("✅ Fichier chargé avec succès !")
     except:
-        st.warning("⚠️ fichier_nettoye.xlsx introuvable")
-        df_eda = pd.DataFrame()
-
-    try:
-        df_cluster = pd.read_excel("segmentation.xlsx")
-    except:
-        st.warning("⚠️ segmentation.xlsx introuvable")
-        df_cluster = pd.DataFrame()
+        st.warning(f"⚠️ Fichier '{file_path}' introuvable ou illisible.")
+        return
 
     # ============================
-    # Indicateurs colorés en haut
+    # Onglets horizontaux
     # ============================
-    patients_total = len(df_cluster) if not df_cluster.empty else len(df_eda)
-    urgences_total = len(df_eda)
-    if "Evolution" in df_eda.columns:
-        evo_counts = df_eda['Evolution'].value_counts(normalize=True) * 100
-        evo_favorable = round(evo_counts.get('Favorable', 0), 1)
-        evo_complications = round(evo_counts.get('Complications', 0), 1)
-    else:
-        evo_favorable = 0
-        evo_complications = 0
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Patients Total / Suivis 2023", patients_total)
-    col2.metric("Urgences Total", urgences_total)
-    col3.metric("Évolution Favorable", f"{evo_favorable}%")
-    col4.metric("Complications", f"{evo_complications}%")
-
-    st.markdown("---")
+    onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs"])
 
     # ============================
-    # Grille de graphiques Démographiques
+    # Onglet Démographique
     # ============================
-    st.subheader("Données Démographiques")
-    fig_width, fig_height = 550, 400
+    with onglets[0]:
+        st.header("1️⃣ Données démographiques")
+        # Sexe
+        if 'Sexe' in df_nettoye.columns:
+            sexe_counts = df_nettoye['Sexe'].value_counts()
+            fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
+                         title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    demo_graphs = []
-    if 'Sexe' in df_eda.columns:
-        sexe_counts = df_eda['Sexe'].value_counts()
-        fig_sexe = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values, title="Sexe")
-        fig_sexe.update_layout(width=fig_width, height=fig_height)
-        demo_graphs.append(fig_sexe)
+        # Origine géographique
+        if 'Origine Géographique' in df_nettoye.columns:
+            origine_counts = df_nettoye['Origine Géographique'].value_counts()
+            fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
+                         title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    if 'Origine Géographique' in df_eda.columns:
-        origine_counts = df_eda['Origine Géographique'].value_counts()
-        fig_origine = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values, title="Origine géographique")
-        fig_origine.update_layout(width=fig_width, height=fig_height)
-        demo_graphs.append(fig_origine)
+        # Scolarité
+        if "Niveau d'instruction scolarité" in df_nettoye.columns:
+            scolar_counts = df_nettoye["Niveau d'instruction scolarité"].value_counts()
+            fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
+                         title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig.update_traces(textinfo='percent+label', pull=0.05)
+            st.plotly_chart(fig, use_container_width=True)
 
-    if "Type de drépanocytose" in df_eda.columns:
-        type_counts = df_eda['Type de drépanocytose'].value_counts()
-        fig_type = px.pie(type_counts, names=type_counts.index, values=type_counts.values, title="Type de drépanocytose")
-        fig_type.update_layout(width=fig_width, height=fig_height)
-        demo_graphs.append(fig_type)
-
-    # Affichage des graphiques démographiques en grille
-    for i in range(0, len(demo_graphs), 2):
-        cols = st.columns(2)
-        for j, col in enumerate(cols):
-            if i+j < len(demo_graphs):
-                col.plotly_chart(demo_graphs[i+j])
-
-    st.markdown("---")
-
-    # ============================
-    # Biomarqueurs (moyennes)
-    # ============================
-    st.subheader("Biomarqueurs (moyennes)")
-    bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-                "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-    bio_data = {}
-    for col in bio_cols:
-        if col in df_eda.columns:
-            df_eda[col] = pd.to_numeric(df_eda[col], errors='coerce')
-            bio_data[col] = df_eda[col].mean()
-    if bio_data:
-        bio_df = pd.DataFrame(bio_data.items(), columns=["Biomarqueur", "Moyenne"])
-        st.table(bio_df.round(2))
-
-    st.markdown("---")
+        # Âge
+        age_col = "Âge du debut d etude en mois (en janvier 2023)"
+        if age_col in df_nettoye.columns:
+            df_nettoye[age_col] = pd.to_numeric(df_nettoye[age_col], errors='coerce')
+            fig = px.histogram(df_nettoye, x=age_col, nbins=15,
+                               title="Répartition des âges à l’inclusion",
+                               color_discrete_sequence=["#2E86C1"])
+            fig.update_traces(texttemplate="%{y}", textposition="outside")
+            st.plotly_chart(fig, use_container_width=True)
 
     # ============================
-    # Analyse Temporelle
+    # Onglet Clinique
     # ============================
-    st.subheader("Analyse Temporelle")
-    time_graphs = []
+    with onglets[1]:
+        st.header("2️⃣ Données cliniques")
 
-    # Consultations par mois
-    if 'Mois' in df_eda.columns:
-        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
-                      "Septembre","Octobre","Novembre","Décembre"]
-        df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
-        mois_counts = df_eda['Mois'].value_counts().sort_index()
-        fig_consult = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
-                              title="Nombre de consultations par mois", text=mois_counts.values)
-        fig_consult.update_layout(width=fig_width, height=fig_height)
-        time_graphs.append(fig_consult)
+        # Type de drépanocytose
+        if 'Type de drépanocytose' in df_nettoye.columns:
+            type_counts = df_nettoye['Type de drépanocytose'].value_counts()
+            fig = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
+                         title="Répartition des types de drépanocytose")
+            st.plotly_chart(fig, use_container_width=True)
 
-    # Diagnostics par mois
-    if 'Diagnostic Catégorisé' in df_eda.columns and 'Mois' in df_eda.columns:
-        diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
-        fig_diag = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
-                           title="Diagnostics par mois")
-        fig_diag.update_layout(width=fig_width, height=fig_height)
-        time_graphs.append(fig_diag)
+        # Analyse bivariée qualitatives vs Evolution
+        cible = "Evolution"
+        qualitative_vars = ["Sexe","Origine Géographique","Diagnostic Catégorisé"]
+        for var in qualitative_vars:
+            if var in df_nettoye.columns and cible in df_nettoye.columns:
+                st.subheader(f"{var} vs {cible}")
+                cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
+                st.dataframe(cross_tab.round(2))
+                fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
+                             title=f"{var} vs {cible}")
+                st.plotly_chart(fig, use_container_width=True)
 
-    # Affichage des graphiques temporels en grille
-    for i in range(0, len(time_graphs), 2):
-        cols = st.columns(2)
-        for j, col in enumerate(cols):
-            if i+j < len(time_graphs):
-                col.plotly_chart(time_graphs[i+j])
-
-    st.markdown("---")
+        # Analyse bivariée quantitatives vs Evolution
+        quantitative_vars = ["Âge du debut d etude en mois (en janvier 2023)", 
+                             "GR (/mm3)","GB (/mm3)","HB (g/dl)"]
+        for var in quantitative_vars:
+            if var in df_nettoye.columns and cible in df_nettoye.columns:
+                st.subheader(f"{var} vs {cible}")
+                stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
+                st.table(stats_group)
 
     # ============================
-    # Clustering
+    # Onglet Temporel
     # ============================
-    if df_cluster is not None and not df_cluster.empty:
-        st.subheader("Clustering KMeans")
-        quantitative_vars = [
-            "Âge du debut d etude en mois (en janvier 2023)",
-            "Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-            "Nbre de GB (/mm3)", "% d'HB A2", "Nbre de PLT (/mm3)"
-        ]
-        df_cluster_scaled = StandardScaler().fit_transform(df_cluster[quantitative_vars])
+    with onglets[2]:
+        st.header("3️⃣ Analyse temporelle")
 
-        # Graphe du coude
-        inertia = [KMeans(n_clusters=k, random_state=42).fit(df_cluster_scaled).inertia_ for k in range(1,11)]
-        fig, ax = plt.subplots()
-        ax.plot(range(1,11), inertia, marker='o')
-        ax.set_xlabel('Nombre de clusters')
-        ax.set_ylabel('Inertia (SSE)')
-        st.pyplot(fig)
+        # Définir l'ordre chronologique des mois
+        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                      "Juillet","Aout","Septembre","Octobre","Novembre","Décembre"]
 
-        # KMeans + PCA 2D
-        n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        df_cluster['Cluster'] = kmeans.fit_predict(df_cluster_scaled)
+        # ----------------------------
+        # Graphique 1 : Diagnostics par mois
+        # ----------------------------
+        if 'Mois' in df_nettoye.columns and 'Diagnostic Catégorisé' in df_nettoye.columns:
+            diag_mois = df_nettoye.groupby(['Mois','Diagnostic Catégorisé']).size().reset_index(name='Nombre')
+            diag_mois['Mois'] = pd.Categorical(diag_mois['Mois'], categories=mois_ordre, ordered=True)
+            diag_mois = diag_mois.sort_values('Mois')
+            st.subheader("Évolution mensuelle des diagnostics")
+            fig_diag = px.line(diag_mois, x='Mois', y='Nombre', color='Diagnostic Catégorisé',
+                               markers=True, title="Diagnostics par mois")
+            st.plotly_chart(fig_diag, use_container_width=True)
 
-        st.subheader("Visualisation PCA 2D")
-        pca = PCA(n_components=2)
-        components = pca.fit_transform(df_cluster_scaled)
-        df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
-        df_pca['Cluster'] = df_cluster['Cluster']
-        fig, ax = plt.subplots()
-        sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
-        st.pyplot(fig)
+        # ----------------------------
+        # Graphique 2 : Nombre de consultations par urgence
+        # ----------------------------
+        urgences = [f'Urgence{i}' for i in range(1,7)]
+        consultations_par_urgence = {}
+        for urg in urgences:
+            if urg in df_nettoye.columns:
+                consultations_par_urgence[urg] = df_nettoye[urg].notna().sum()
+        if consultations_par_urgence:
+            st.subheader("Nombre total de consultations par urgence")
+            df_urg_tot = pd.DataFrame.from_dict(consultations_par_urgence, orient='index', columns=['Nombre'])
+            st.dataframe(df_urg_tot.astype(int))
+            fig_urg = px.bar(df_urg_tot, x=df_urg_tot.index, y='Nombre', text='Nombre',
+                             title="Nombre de consultations par Urgence")
+            st.plotly_chart(fig_urg, use_container_width=True)
 
-        # Profil détaillé
-        st.subheader("Profil détaillé des clusters")
-        cluster_counts = df_cluster['Cluster'].value_counts().sort_index()
-        st.dataframe(cluster_counts.rename("Nombre de patients"))
-        cluster_means = df_cluster.groupby('Cluster')[quantitative_vars].mean()
-        st.dataframe(cluster_means.round(2))
+        # ----------------------------
+        # Graphique 3 : Nombre de consultations par mois
+        # ----------------------------
+        if 'Mois' in df_nettoye.columns:
+            df_nettoye['Mois'] = pd.Categorical(df_nettoye['Mois'], categories=mois_ordre, ordered=True)
+            mois_counts = df_nettoye.groupby('Mois').size()
+            st.subheader("Nombre total de consultations par mois")
+            df_mois_tot = pd.DataFrame({'Mois': mois_counts.index, 'Nombre': mois_counts.values})
+            st.dataframe(df_mois_tot)
+            fig_mois = px.line(df_mois_tot, x='Mois', y='Nombre', markers=True,
+                               title="Évolution totale des consultations par mois")
+            st.plotly_chart(fig_mois, use_container_width=True)
+
+    # ============================
+    # Onglet Biomarqueurs
+    # ============================
+    with onglets[3]:
+        st.header("4️⃣ Biomarqueurs - statistiques descriptives")
+        bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
+                    "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+        bio_data = {}
+        for col in bio_cols:
+            if col in df_nettoye.columns:
+                df_nettoye[col] = pd.to_numeric(df_nettoye[col], errors='coerce')
+                bio_data[col] = {
+                    "Moyenne": df_nettoye[col].mean(),
+                    "Médiane": df_nettoye[col].median(),
+                    "Min": df_nettoye[col].min(),
+                    "Max": df_nettoye[col].max()
+                }
+        if bio_data:
+            bio_df = pd.DataFrame(bio_data).T.round(2)
+            st.table(bio_df)
