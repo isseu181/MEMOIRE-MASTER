@@ -43,157 +43,112 @@ def concat_dates_urgences(feuilles):
 # Page Streamlit
 # ============================
 def show_eda():
-    st.title("Analyse exploratoire des données")
+    st.title("📊 Analyse exploratoire des données")
     file_path = "Base_de_donnees_USAD_URGENCES1.xlsx"
 
     try:
         feuilles = pd.read_excel(file_path, sheet_name=None)
-        st.success("✅ Fichier chargé avec succès !")
-    except FileNotFoundError:
-        st.error(f"❌ Fichier introuvable. Assurez-vous que '{file_path}' est à la racine du projet.")
+    except Exception:
+        st.info("Impossible de charger le fichier principal.")
         return
 
     # ============================
-    # Onglets horizontaux (menu)
+    # Onglets horizontaux
     # ============================
     onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs", "Analyse bivariée"])
 
-    # ============================
-    # Onglet 1 : Démographique
-    # ============================
+    # ---------------- DEMOGRAPHIQUE ----------------
     with onglets[0]:
-        st.header("1️⃣ Informations démographiques")
         if 'Identite' in feuilles:
-            identite = feuilles['Identite']
-            identite = convertir_df_oui_non(identite, exclude_columns=["Niveau d'instruction scolarité"])
+            identite = convertir_df_oui_non(feuilles['Identite'], exclude_columns=["Niveau d'instruction scolarité"])
+            st.header("Informations démographiques")
             st.write("Nombre total de patients:", len(identite))
 
-            # Sexe
             if 'Sexe' in identite.columns:
-                sexe_counts = identite['Sexe'].value_counts()
-                fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                             title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
+                fig = px.pie(identite, names='Sexe', title="Répartition par sexe")
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Origine géographique
             if 'Origine Géographique' in identite.columns:
-                origine_counts = identite['Origine Géographique'].value_counts()
-                fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                             title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
+                fig = px.pie(identite, names='Origine Géographique', title="Origine géographique")
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Scolarité
             if "Niveau d'instruction scolarité" in identite.columns:
-                scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
-                fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
-                             title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
+                fig = px.pie(identite, names="Niveau d'instruction scolarité", title="Niveau scolaire")
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Âge
             age_col = "Âge du debut d etude en mois (en janvier 2023)"
             if age_col in identite.columns:
                 identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
-                fig = px.histogram(identite, x=age_col, nbins=15,
-                                   title="Répartition des âges à l’inclusion",
-                                   color_discrete_sequence=["#2E86C1"])
+                fig = px.histogram(identite, x=age_col, nbins=15, title="Distribution des âges (mois)")
                 st.plotly_chart(fig, use_container_width=True)
 
-    # ============================
-    # Onglet 2 : Clinique
-    # ============================
+    # ---------------- CLINIQUE ----------------
     with onglets[1]:
-        st.header("2️⃣ Données cliniques")
+        st.header("Consultations cliniques")
         symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
         for i in range(1,7):
             nom = f'Urgence{i}'
             if nom in feuilles:
-                df_urg = feuilles[nom]
-                df_urg = convertir_df_oui_non(df_urg)
+                df_urg = convertir_df_oui_non(feuilles[nom])
+                st.subheader(f"{nom} - {len(df_urg)} consultations")
 
-                date_col_candidates = [c for c in df_urg.columns if "date" in c.lower()]
-                if date_col_candidates:
-                    df_urg = df_urg[df_urg[date_col_candidates[0]].notna()]
-
-                st.subheader(f"{nom} - Nombre de consultations : {len(df_urg)}")
-
-                data_symptomes = {}
-                for s in symptomes:
-                    if s in df_urg.columns and not df_urg[s].dropna().empty:
-                        counts = df_urg[s].value_counts().to_dict()
-                        data_symptomes[s] = counts
+                data_symptomes = {s: df_urg[s].value_counts().to_dict()
+                                  for s in symptomes if s in df_urg.columns}
                 if data_symptomes:
                     st.table(pd.DataFrame(data_symptomes).fillna(0).astype(int))
 
-    # ============================
-    # Onglet 3 : Temporel
-    # ============================
+    # ---------------- TEMPOREL ----------------
     with onglets[2]:
-        st.header("3️⃣ Répartition temporelle des urgences")
+        st.header("Répartition temporelle des urgences")
         toutes_dates = concat_dates_urgences(feuilles)
         if not toutes_dates.empty:
-            repartition_mensuelle = toutes_dates.dt.month.value_counts().sort_index()
-            mois_noms = {1:'Janvier',2:'Février',3:'Mars',4:'Avril',5:'Mai',6:'Juin',
-                         7:'Juillet',8:'Août',9:'Septembre',10:'Octobre',11:'Novembre',12:'Décembre'}
-
-            repartition_df = pd.DataFrame({
-                'Mois':[mois_noms[m] for m in repartition_mensuelle.index],
-                'Nombre de consultations': repartition_mensuelle.values
-            })
-            fig = px.line(repartition_df, x='Mois', y='Nombre de consultations',
-                          title="Répartition mensuelle des urgences drépanocytaires",
-                          markers=True)
+            repartition = toutes_dates.dt.month.value_counts().sort_index()
+            mois_noms = {1:'Jan',2:'Fév',3:'Mars',4:'Avr',5:'Mai',6:'Juin',
+                         7:'Juil',8:'Août',9:'Sept',10:'Oct',11:'Nov',12:'Déc'}
+            df_mois = pd.DataFrame({"Mois":[mois_noms[m] for m in repartition.index],
+                                    "Consultations":repartition.values})
+            fig = px.line(df_mois, x="Mois", y="Consultations", markers=True,
+                          title="Consultations mensuelles")
             st.plotly_chart(fig, use_container_width=True)
 
-    # ============================
-    # Onglet 4 : Biomarqueurs
-    # ============================
+    # ---------------- BIOMARQUEURS ----------------
     with onglets[3]:
-        st.header("4️⃣ Biomarqueurs")
+        st.header("Biomarqueurs")
         try:
             df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
             bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                         "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-            stats_data = {}
-            for col in bio_cols:
-                if col in df_nettoye.columns:
-                    df_nettoye[col] = pd.to_numeric(df_nettoye[col], errors='coerce')
-                    stats_data[col] = {
-                        "Moyenne": df_nettoye[col].mean(),
-                        "Médiane": df_nettoye[col].median(),
-                        "Min": df_nettoye[col].min(),
-                        "Max": df_nettoye[col].max()
-                    }
-            if stats_data:
-                stats_df = pd.DataFrame(stats_data).T.round(2)
-                st.table(stats_df)
-        except FileNotFoundError:
-            st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
+            stats = {col: df_nettoye[col].astype(float).describe()[["mean","50%","min","max"]]
+                     for col in bio_cols if col in df_nettoye}
+            if stats:
+                st.table(pd.DataFrame(stats).T.rename(columns={"50%":"Mediane"}).round(2))
+        except Exception:
+            pass
 
-    # ============================
-    # Onglet 5 : Analyse bivariée
-    # ============================
+    # ---------------- ANALYSE BIVARIÉE ----------------
     with onglets[4]:
-        st.header("5️⃣ Analyse bivariée : Evolution vs autres variables")
+        st.header("Analyse bivariée : Evolution vs variables")
         try:
             df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
             cible = "Evolution"
-            if cible in df_nettoye.columns:
-                variables = ["Type de drépanocytose","Sexe","Âge du debut d etude en mois (en janvier 2023)",
-                             "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
+            variables = ["Type de drépanocytose","Sexe",
+                         "Âge du debut d etude en mois (en janvier 2023)",
+                         "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
 
-                for var in variables:
-                    if var in df_nettoye.columns:
-                        st.subheader(f"{var} vs {cible}")
+            for var in variables:
+                if var not in df_nettoye.columns: 
+                    continue
+                st.subheader(f"{var} vs {cible}")
 
-                        if df_nettoye[var].dtype=="object":
-                            cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
-                            st.dataframe(cross_tab.round(2))
-                            fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
-                                         title=f"{var} vs {cible}")
-                            st.plotly_chart(fig, use_container_width=True)
-                        else:
-                            stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
-                            st.table(stats_group)
-        except FileNotFoundError:
-            st.warning("⚠️ 'fichier_nettoye.xlsx' introuvable. Placez-le à la racine du projet.")
+                if df_nettoye[var].dtype == "object":
+                    cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
+                    fig = px.imshow(cross_tab, text_auto=True, aspect="auto",
+                                    title=f"Heatmap {var} vs {cible}")
+                    st.plotly_chart(fig, use_container_width=True)
 
+                else:
+                    fig = px.box(df_nettoye, x=cible, y=var,
+                                 title=f"Boxplot {var} selon {cible}")
+                    st.plotly_chart(fig, use_container_width=True)
+        except Exception:
+            pass
