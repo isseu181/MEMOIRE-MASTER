@@ -9,7 +9,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 def show_dashboard():
-    st.set_page_config(page_title="Tableau de bord USAD Drépanocytose", layout="wide")
+    st.set_page_config(page_title="Tableau de Bord Analyse des urgences drépanocytaires", layout="wide")
     
     # ============================
     # Chargement des données
@@ -60,7 +60,6 @@ def show_dashboard():
     # ============================
     # Données démographiques
     # ============================
-    st.header("Données Démographiques")
     demo_cols = ['Sexe', 'Origine Géographique', "Niveau d'instruction scolarité"]
     demo_graphs = []
     for col in demo_cols:
@@ -76,14 +75,9 @@ def show_dashboard():
         if i==0: col1.plotly_chart(fig, use_container_width=True)
         elif i==1: col2.plotly_chart(fig, use_container_width=True)
         else: col3.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("---")
-
     # ============================
     # Données Cliniques & Biomarqueurs
     # ============================
-    st.header("Données Cliniques & Biomarqueurs")
-
     # Sexe vs Evolution (graph seulement)
     if 'Sexe' in df_eda.columns and 'Evolution' in df_eda.columns:
         cross_tab = pd.crosstab(df_eda['Sexe'], df_eda['Evolution'])
@@ -91,7 +85,6 @@ def show_dashboard():
                      title="Sexe vs Evolution")
         fig.update_layout(height=400, width=700)
         st.plotly_chart(fig, use_container_width=True)
-
     # Biomarqueurs : table uniquement
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
@@ -109,12 +102,9 @@ def show_dashboard():
         st.subheader("Biomarqueurs - Statistiques descriptives")
         st.table(bio_df)
 
-    st.markdown("---")
-
     # ============================
     # Analyse Temporelle
     # ============================
-    st.header("Analyse Temporelle")
     # Nombre de consultations par mois
     if 'Mois' in df_eda.columns:
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
@@ -174,3 +164,4 @@ def show_dashboard():
         st.dataframe(cluster_counts.rename("Nombre de patients"))
         cluster_means = df_cluster.groupby('Cluster')[quantitative_vars].mean()
         st.dataframe(cluster_means.round(2))
+
