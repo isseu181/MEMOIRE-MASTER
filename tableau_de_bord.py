@@ -36,7 +36,7 @@ complications = df_eda['Evolution'].value_counts(normalize=True).get('Complicati
 
 cols = st.columns(4)
 indicators = [
-    ("Patients Total / suivis 2023", patients_total, "#1f77b4"),
+    ("Patients Total ", patients_total, "#1f77b4"),
     ("Urgences Total", urgences_total, "#ff7f0e"),
     ("Évolution Favorable", f"{evol_favorable:.1f}%", "#2ca02c"),
     ("Complications", f"{complications:.1f}%", "#d62728"),
@@ -93,7 +93,7 @@ for var in qual_vars:
 # ============================
 if 'Mois' in df_eda.columns:
     mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                  "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+                  "Juillet","Aout","Septembre","Octobre","Novembre","Décembre"]
     df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
     mois_counts = df_eda['Mois'].value_counts().sort_index()
     fig_mois = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
@@ -177,3 +177,4 @@ if df_cluster is not None:
     st.dataframe(cluster_counts.rename("Nombre de patients"))
     cluster_means = pd.DataFrame(df_cluster.groupby('Cluster')[quantitative_vars].mean())
     st.dataframe(cluster_means.round(2))
+
