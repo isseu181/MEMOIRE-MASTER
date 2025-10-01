@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import plotly.express as px
 
 # ---------------- ANALYSE BIVARIÉE ----------------
 with onglets[4]:
@@ -6,21 +7,28 @@ with onglets[4]:
     try:
         df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
         cible = "Evolution"
-        variables = ["Type de drépanocytose","Sexe",
-                     "Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
 
-        for var in variables:
+        # ============================
+        # Variables qualitatives -> graphe 3D
+        # ============================
+        variables_qualitatives = [
+            "Type de drépanocytose",
+            "Sexe",
+            "Origine Géographique",
+            "Prise en charge",
+            "Diagnostic Catégorisé"
+        ]
+
+        for var in variables_qualitatives:
             if var not in df_nettoye.columns: 
                 continue
             st.subheader(f"{var} vs {cible}")
 
-            # Table croisée en pourcentage
+            # Table croisée normalisée
             cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
 
-            # Coordonnées pour la 3D
-            x = []
-            y = []
-            z = []
+            # Préparer données pour Bar3D
+            x, y, z = [], [], []
             for i, cat_var in enumerate(cross_tab.index):
                 for j, cat_cible in enumerate(cross_tab.columns):
                     x.append(cat_var)
@@ -44,13 +52,22 @@ with onglets[4]:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        # Variables quantitatives (toujours en boxplot)
-        quant_vars = ["Âge du debut d etude en mois (en janvier 2023)"]
-        for var in quant_vars:
+        # ============================
+        # Variables quantitatives -> Boxplots
+        # ============================
+        variables_quantitatives = [
+            "Âge du debut d etude en mois (en janvier 2023)",
+            "Taux d'Hb (g/dL)",
+            "% d'Hb F",
+            "Nbre de GB (/mm3)"
+        ]
+
+        for var in variables_quantitatives:
             if var in df_nettoye.columns:
+                df_nettoye[var] = pd.to_numeric(df_nettoye[var], errors="coerce")
                 st.subheader(f"{var} vs {cible}")
-                fig = px.box(df_nettoye, x=cible, y=var,
-                             title=f"Boxplot {var} selon {cible}")
+                fig = px.box(df_nettoye, x=cible, y=var, points="all",
+                             title=f"Distribution de {var} selon {cible}")
                 st.plotly_chart(fig, use_container_width=True)
 
     except Exception:
