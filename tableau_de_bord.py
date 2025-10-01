@@ -7,7 +7,6 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
 
 def show_dashboard():
     st.set_page_config(page_title="Tableau de bord - Mémoire", layout="wide")
@@ -15,24 +14,13 @@ def show_dashboard():
     # ============================
     # Chargement des données
     # ============================
-    try:
-        df_eda = pd.read_excel("fichier_nettoye.xlsx")
-        st.success("✅ Données principales chargées")
-    except:
-        st.warning("⚠️ fichier_nettoye.xlsx introuvable")
-        st.stop()
-
-    try:
-        df_cluster = pd.read_excel("segmentation.xlsx")
-        st.success("✅ Données clustering chargées")
-    except:
-        st.warning("⚠️ segmentation.xlsx introuvable")
-        df_cluster = None
+    df_eda = pd.read_excel("fichier_nettoye.xlsx") if "fichier_nettoye.xlsx" else pd.DataFrame()
+    df_cluster = pd.read_excel("segmentation.xlsx") if "segmentation.xlsx" else pd.DataFrame()
 
     # ============================
     # Indicateurs clés en haut
     # ============================
-    patients_total = len(df_cluster) if df_cluster is not None else len(df_eda)
+    patients_total = len(df_cluster) if not df_cluster.empty else len(df_eda)
     urgences_total = len(df_eda)
     if "Evolution" in df_eda.columns:
         evo_counts = df_eda['Evolution'].value_counts(normalize=True) * 100
@@ -54,15 +42,13 @@ def show_dashboard():
     # Graphiques Démographiques
     # ============================
     st.subheader("Données Démographiques")
-    fig_width = 700
-    fig_height = 400
+    fig_width, fig_height = 600, 400
 
-    # Répartition des âges à l’inclusion
+    # Âge à l’inclusion
     age_col = "Âge du debut d etude en mois (en janvier 2023)"
     if age_col in df_eda.columns:
         df_eda[age_col] = pd.to_numeric(df_eda[age_col], errors='coerce')
-        fig_age = px.histogram(df_eda, x=age_col, nbins=15,
-                               title="Répartition des âges à l’inclusion")
+        fig_age = px.histogram(df_eda, x=age_col, nbins=15, title="Âge à l’inclusion")
         fig_age.update_layout(width=fig_width, height=fig_height)
         st.plotly_chart(fig_age)
 
@@ -70,7 +56,7 @@ def show_dashboard():
     if "Type de drépanocytose" in df_eda.columns:
         type_counts = df_eda['Type de drépanocytose'].value_counts()
         fig_type = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
-                          title="Répartition des types de drépanocytose")
+                          title="Type de drépanocytose")
         fig_type.update_layout(width=fig_width, height=fig_height)
         st.plotly_chart(fig_type)
 
@@ -86,29 +72,16 @@ def show_dashboard():
     if 'Origine Géographique' in df_eda.columns:
         origine_counts = df_eda['Origine Géographique'].value_counts()
         fig_origine = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                             title="Répartition par origine géographique")
+                             title="Origine géographique")
         fig_origine.update_layout(width=fig_width, height=fig_height)
         st.plotly_chart(fig_origine)
 
     st.markdown("---")
 
     # ============================
-    # Données Cliniques & Biomarqueurs
+    # Biomarqueurs
     # ============================
-    st.subheader("Données Cliniques & Biomarqueurs")
-    cible = "Evolution"
-
-    # Graphiques qualitatives vs Evolution
-    qualitative_vars = ["Sexe", "Origine Géographique", "Diagnostic Catégorisé"]
-    for var in qualitative_vars:
-        if var in df_eda.columns and cible in df_eda.columns:
-            cross_tab = pd.crosstab(df_eda[var], df_eda[cible], normalize="index")*100
-            fig = px.bar(cross_tab, barmode="group", text_auto=".1f",
-                         title=f"{var} vs {cible}")
-            fig.update_layout(width=fig_width, height=fig_height)
-            st.plotly_chart(fig)
-
-    # Biomarqueurs (tableau avec moyennes)
+    st.subheader("Biomarqueurs (moyennes)")
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
     bio_data = {}
@@ -126,7 +99,6 @@ def show_dashboard():
     # Analyse Temporelle
     # ============================
     st.subheader("Analyse Temporelle")
-
     # Nombre de consultations par mois
     if 'Mois' in df_eda.columns:
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
@@ -142,7 +114,7 @@ def show_dashboard():
     if 'Diagnostic Catégorisé' in df_eda.columns and 'Mois' in df_eda.columns:
         diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
         fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
-                      title="Évolution des diagnostics par mois")
+                      title="Diagnostics par mois")
         fig.update_layout(width=fig_width, height=fig_height)
         st.plotly_chart(fig)
 
@@ -151,7 +123,7 @@ def show_dashboard():
     # ============================
     # Clustering
     # ============================
-    if df_cluster is not None:
+    if df_cluster is not None and not df_cluster.empty:
         st.subheader("Clustering KMeans")
         quantitative_vars = [
             "Âge du debut d etude en mois (en janvier 2023)",
