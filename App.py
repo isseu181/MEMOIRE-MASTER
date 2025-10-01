@@ -1,24 +1,55 @@
-# App.py
+# app.py
 import streamlit as st
-from eda import show_eda
-from clustering import show_clustering
-from classification import show_classification
+import eda
+import clustering
+import classification
+import deployment  # Ajout du module deployment
 
-st.set_page_config(page_title="Mémoire - Dashboard", layout="wide")
-
-st.title("📊 Tableau de bord global - Mémoire")
+st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
 # ============================
-# Menu principal
+# Barre latérale de navigation
 # ============================
-menu = ["Exploration des données (EDA)", "Clustering", "Classification supervisée"]
-choix = st.sidebar.radio("Sélectionnez une section :", menu)
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Aller à :", [
+    "Chapitre 1 : Cadre théorique",
+    "Chapitre 2 : Analyse exploratoire",
+    "Chapitre 3 : Classification non supervisée",
+    "Chapitre 4 : Classification supervisée",
+    "Déploiement du modèle"
+])
 
-if choix == "Exploration des données (EDA)":
-    show_eda()
+# ============================
+# Chapitre 1 : Cadre théorique
+# ============================
+if page == "Chapitre 1 : Cadre théorique":
+    st.title("Cadre théorique et conceptuel")
+    st.markdown("""
+    - Présentation de l’USAD  
+    - Généralités sur la drépanocytose  
+    - Principes de l’intelligence artificielle appliquée à la santé
+    """)
 
-elif choix == "Clustering":
-    show_clustering()
+# ============================
+# Chapitre 2 : Analyse exploratoire
+# ============================
+elif page == "Chapitre 2 : Analyse exploratoire":
+    eda.show_eda()
 
-elif choix == "Classification supervisée":
-    show_classification()
+# ============================
+# Chapitre 3 : Classification non supervisée
+# ============================
+elif page == "Chapitre 3 : Classification non supervisée":
+    clustering.show_clustering()
+
+# ============================
+# Chapitre 4 : Classification supervisée
+# ============================
+elif page == "Chapitre 4 : Classification supervisée":
+    classification.show_classification()
+
+# ============================
+# Déploiement du modèle
+# ============================
+elif page == "Déploiement du modèle":
+    deployment.show_deployment()
