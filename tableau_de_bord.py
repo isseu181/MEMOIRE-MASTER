@@ -29,26 +29,23 @@ except:
     df_cluster = None
 
 # ============================
-# Indicateurs clés
+# Indicateurs clés en haut
 # ============================
-st.markdown("## Tableau de bord")
-col1, col2, col3, col4 = st.columns(4)
-
-# Nombre total de patients
 patients_total = len(df_cluster) if df_cluster is not None else len(df_eda)
-col1.metric("Patients Total / Suivis 2023", patients_total)
-
-# Nombre total d'urgences
 urgences_total = len(df_eda)
-col2.metric("Urgences Total", urgences_total)
-
-# Évolution favorable
 if "Evolution" in df_eda.columns:
     evo_counts = df_eda['Evolution'].value_counts(normalize=True) * 100
     evo_favorable = round(evo_counts.get('Favorable', 0), 1)
-    col3.metric("Évolution Favorable", f"{evo_favorable}%")
     evo_complications = round(evo_counts.get('Complications', 0), 1)
-    col4.metric("Complications", f"{evo_complications}%")
+else:
+    evo_favorable = 0
+    evo_complications = 0
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Patients Total / Suivis 2023", patients_total)
+col2.metric("Urgences Total", urgences_total)
+col3.metric("Évolution Favorable", f"{evo_favorable}%")
+col4.metric("Complications", f"{evo_complications}%")
 
 st.markdown("---")
 
@@ -95,7 +92,7 @@ if 'Origine Géographique' in df_eda.columns:
 st.markdown("---")
 
 # ============================
-# Graphiques Cliniques
+# Données Cliniques & Biomarqueurs
 # ============================
 st.subheader("Données Cliniques & Biomarqueurs")
 cible = "Evolution"
