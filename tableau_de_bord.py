@@ -79,7 +79,7 @@ def show_dashboard():
     # Courbe : consultations par mois
     if "Mois" in df_eda.columns:
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet",
-                      "Août","Septembre","Octobre","Novembre","Décembre"]
+                      "Aout","Septembre","Octobre","Novembre","Décembre"]
         df_eda["Mois"] = pd.Categorical(df_eda["Mois"], categories=mois_ordre, ordered=True)
         mois_counts = df_eda["Mois"].value_counts().sort_index()
         fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
@@ -131,3 +131,4 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
