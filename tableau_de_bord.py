@@ -2,19 +2,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-import seaborn as sns
-import matplotlib.pyplot as plt
-import plotly
+
+st.set_page_config(page_title="Tableau de bord - Mémoire", layout="wide")
 
 def show_dashboard():
-    st.set_page_config(page_title="Tableau de bord USAD Drépanocytose", layout="wide")
-    st.title("📊 Tableau de bord USAD Drépanocytose")
-
     # ============================
     # Chargement des données
     # ============================
@@ -22,126 +18,152 @@ def show_dashboard():
     df_cluster = pd.read_excel("segmentation.xlsx")
 
     # ============================
-    # Indicateurs clés colorés
+    # Indicateurs principaux en haut
     # ============================
     total_patients = df_cluster.shape[0]
     urgences_total = df_eda.shape[0]
-    evolution_favorable = round(df_eda['Evolution'].value_counts(normalize=True).get('Favorable',0)*100,1)
-    complications = round(df_eda['Evolution'].value_counts(normalize=True).get('Complications',0)*100,1)
+    evolution_favorable = round((df_eda['Evolution']=='Favorable').mean()*100,1)
+    complications = round((df_eda['Evolution']=='Complications').mean()*100,1)
 
-    # Couleurs custom
-    colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728"]
+    kpi_cols = st.columns(4)
+    kpi_vals = [total_patients, urgences_total, f"{evolution_favorable}%", f"{complications}%"]
+    kpi_labels = ["Patients Total / Suivis 2023", "Consultations d'urgence", "Évolution Favorable", "Complications"]
+    kpi_colors = ["#1f77b4","#ff7f0e","#2ca02c","#d62728"]
 
-    cols = st.columns(4)
-    cols[0].markdown(f"<div style='background-color:{colors[0]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Patients Total / Suivis 2023</h4><h2>{total_patients}</h2></div>", unsafe_allow_html=True)
-    cols[1].markdown(f"<div style='background-color:{colors[1]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Urgences Total</h4><h2>{urgences_total}</h2></div>", unsafe_allow_html=True)
-    cols[2].markdown(f"<div style='background-color:{colors[2]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Évolution Favorable (%)</h4><h2>{evolution_favorable}</h2></div>", unsafe_allow_html=True)
-    cols[3].markdown(f"<div style='background-color:{colors[3]};padding:10px;border-radius:5px;text-align:center;color:white;'><h4>Complications (%)</h4><h2>{complications}</h2></div>", unsafe_allow_html=True)
+    for i in range(4):
+        kpi_cols[i].markdown(
+            f"<div style='background-color:{kpi_colors[i]};padding:15px;border-radius:8px;text-align:center;color:white;'>"
+            f"<h5>{kpi_labels[i]}</h5><h3>{kpi_vals[i]}</h3></div>",
+            unsafe_allow_html=True
+        )
 
     st.markdown("---")
 
     # ============================
-    # Graphiques démographiques et cliniques
+    # Graphiques univariés 2 par ligne
     # ============================
     plots = []
 
     # Sexe
     if 'Sexe' in df_eda.columns:
         sexe_counts = df_eda['Sexe'].value_counts()
-        fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                     title="Répartition par sexe")
+        fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values, title="Répartition par sexe")
         plots.append(fig)
 
-    # Type de drépanocytose
-    if 'Type de drépanocytose' in df_eda.columns:
-        type_counts = df_eda['Type de drépanocytose'].value_counts()
-        fig = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
-                     title="Répartition par type de drépanocytose")
+    # Origine Géographique
+    if 'Origine Géographique' in df_eda.columns:
+        origine_counts = df_eda['Origine Géographique'].value_counts()
+        fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values, title="Répartition par origine géographique")
         plots.append(fig)
 
-    # Temporel - consultations par mois
+    # Diagnostic Catégorisé
+    if 'Diagnostic Catégorisé' in df_eda.columns:
+        diag_counts = df_eda['Diagnostic Catégorisé'].value_counts()
+        fig = px.pie(diag_counts, names=diag_counts.index, values=diag_counts.values, title="Répartition par type de drépanocytose")
+        plots.append(fig)
+
+    # Nombre de consultations par urgence
+    urgences = [f'Urgence{i}' for i in range(1,7)]
+    nombre_consultations = {u: df_eda[u].notna().sum() for u in urgences if u in df_eda.columns}
+    if nombre_consultations:
+        temp_df = pd.DataFrame.from_dict(nombre_consultations, orient='index', columns=['Nombre de consultations'])
+        fig = px.bar(temp_df, y='Nombre de consultations', x=temp_df.index, text='Nombre de consultations', title="Nombre de consultations par urgence")
+        plots.append(fig)
+
+    # Nombre de consultations par mois
     if 'Mois' in df_eda.columns:
-        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
-                      "Septembre","Octobre","Novembre","Décembre"]
+        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
         df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
         mois_counts = df_eda['Mois'].value_counts().sort_index()
-        fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
-                      title="Nombre de consultations par mois")
+        fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True, title="Nombre de consultations par mois")
         plots.append(fig)
 
-    # Temporel - diagnostics par mois
-    if 'Diagnostic Catégorisé' in df_eda.columns and 'Mois' in df_eda.columns:
-        diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
-        fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
-                      title="Évolution des diagnostics par mois")
-        plots.append(fig)
+        # Diagnostics par mois
+        if 'Diagnostic Catégorisé' in df_eda.columns:
+            diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
+            fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True, title="Diagnostics par mois")
+            plots.append(fig)
 
-    # Affichage 2 graphiques par ligne
+    # Affichage 2 par ligne
     for i in range(0, len(plots), 2):
-        cols_graph = st.columns(2)
-        for j, col in enumerate(cols_graph):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
             if i+j < len(plots):
-                plot = plots[i+j]
-                if isinstance(plot, plotly.graph_objs._figure.Figure):
-                    col.plotly_chart(plot, use_container_width=True)
-                elif isinstance(plot, Figure):
-                    col.pyplot(plot)
+                col.plotly_chart(plots[i+j], use_container_width=True)
 
     st.markdown("---")
 
     # ============================
-    # Moyennes biomarqueurs
+    # Moyennes des biomarqueurs (cartes)
     # ============================
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
                 "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-    bio_data = {}
-    for col in bio_cols:
-        if col in df_eda.columns:
-            df_eda[col] = pd.to_numeric(df_eda[col], errors='coerce')
-            bio_data[col] = round(df_eda[col].mean(),2)
+    bio_data = {col: round(pd.to_numeric(df_eda[col], errors='coerce').mean(),2) for col in bio_cols if col in df_eda.columns}
 
     if bio_data:
         st.subheader("Moyennes des biomarqueurs")
-        bio_df = pd.DataFrame.from_dict(bio_data, orient='index', columns=['Moyenne'])
-        st.table(bio_df)
+        colors_bio = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b"]
+        cols = st.columns(len(bio_data))
+        for i, (col_name, value) in enumerate(bio_data.items()):
+            cols[i].markdown(
+                f"<div style='background-color:{colors_bio[i]};padding:15px;border-radius:8px;text-align:center;color:white;'>"
+                f"<h5>{col_name}</h5><h3>{value}</h3></div>",
+                unsafe_allow_html=True
+            )
 
     st.markdown("---")
 
     # ============================
-    # Clustering
+    # Analyses bivariées
     # ============================
+    st.subheader("Analyses bivariées")
+    bivariate_cols = st.columns(2)
+
+    # Sexe vs Evolution
+    if 'Sexe' in df_eda.columns and 'Evolution' in df_eda.columns:
+        cross_tab = pd.crosstab(df_eda['Sexe'], df_eda['Evolution'], normalize='index')*100
+        fig = px.bar(cross_tab, barmode='group', text_auto=".1f", title="Sexe vs Evolution (%)")
+        bivariate_cols[0].plotly_chart(fig, use_container_width=True)
+
+    # Diagnostic Catégorisé vs Evolution
+    if 'Diagnostic Catégorisé' in df_eda.columns and 'Evolution' in df_eda.columns:
+        cross_tab = pd.crosstab(df_eda['Diagnostic Catégorisé'], df_eda['Evolution'], normalize='index')*100
+        fig = px.bar(cross_tab, barmode='group', text_auto=".1f", title="Diagnostic Catégorisé vs Evolution (%)")
+        bivariate_cols[1].plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+
+    # ============================
+    # Clustering KMeans
+    # ============================
+    st.subheader("Clustering KMeans")
     quantitative_vars = [
         "Âge du debut d etude en mois (en janvier 2023)",
         "Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-        "Nbre de GB (/mm3)", "% d'HB A2", "Nbre de PLT (/mm3)"
+        "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"
     ]
     df_cluster_scaled = StandardScaler().fit_transform(df_cluster[quantitative_vars])
-    n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    df_cluster['Cluster'] = kmeans.fit_predict(df_cluster_scaled)
-
-    # Graphe du coude
-    inertia = []
-    for k in range(1,11):
-        inertia.append(KMeans(n_clusters=k, random_state=42).fit(df_cluster_scaled).inertia_)
+    inertia = [KMeans(n_clusters=k, random_state=42).fit(df_cluster_scaled).inertia_ for k in range(1,11)]
     fig, ax = plt.subplots()
     ax.plot(range(1,11), inertia, marker='o')
     ax.set_xlabel('Nombre de clusters')
     ax.set_ylabel('Inertia (SSE)')
-    ax.set_title("Graphe du coude pour KMeans")
     st.pyplot(fig)
 
-    # PCA 2D
+    # Clustering final
+    n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    df_cluster['Cluster'] = kmeans.fit_predict(df_cluster_scaled)
+
+    st.subheader("Visualisation PCA 2D")
     pca = PCA(n_components=2)
     components = pca.fit_transform(df_cluster_scaled)
     df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
     df_pca['Cluster'] = df_cluster['Cluster']
     fig, ax = plt.subplots()
     sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
-    ax.set_title("Visualisation PCA 2D")
     st.pyplot(fig)
 
-    # Profil détaillé
     st.subheader("Profil détaillé des clusters")
     cluster_counts = df_cluster['Cluster'].value_counts().sort_index()
     st.dataframe(cluster_counts.rename("Nombre de patients"))
