@@ -3,8 +3,7 @@ import streamlit as st
 import eda
 import clustering
 import classification
-import deployment  # Ajout du module deployment
-
+import deployment  
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
 # ============================
