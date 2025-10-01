@@ -94,20 +94,20 @@ def show_eda():
     with onglets[1]:
         st.header("Informations Cliniques")
 
-        # Type de drépanocytose
+        # Type de drépanocytose + graphique 3D
         if 'Drépano' in feuilles:
             drepano = feuilles['Drépano']
             drepano = convertir_df_oui_non(drepano)
             if 'Type de drépanocytose' in drepano.columns:
-                type_counts = drepano['Type de drépanocytose'].value_counts()
-                st.table(type_counts)
-                fig = px.scatter_3d(drepano, x="Type de drépanocytose", y="% d'Hb F", z="% d'Hb S", color="Type de drépanocytose")
-                st.plotly_chart(fig, use_container_width=True)
+                st.subheader("Type de drépanocytose")
+                st.table(drepano['Type de drépanocytose'].value_counts())
+                if all(x in drepano.columns for x in ["% d'Hb F","% d'Hb S"]):
+                    fig = px.scatter_3d(drepano, x="Type de drépanocytose", y="% d'Hb F", z="% d'Hb S", color="Type de drépanocytose")
+                    st.plotly_chart(fig, use_container_width=True)
 
         # Nombre de consultations par urgence
         st.subheader("Nombre de consultations par urgence")
         urgences = {}
-        symptomes = ['Douleur','Fièvre','Pâleur','Ictère','Toux']
         for i in range(1,7):
             nom = f'Urgence{i}'
             if nom in feuilles:
@@ -117,10 +117,10 @@ def show_eda():
         if urgences:
             st.table(pd.DataFrame.from_dict(urgences, orient='index', columns=['Nombre de consultations']))
 
-        # Analyse bivariée : Evolution vs variables qualitatives
+        # Analyse bivariée qualitative
         st.subheader("Analyse bivariée : Evolution vs variables qualitatives")
         try:
-            df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
+            df_nettoye = pd.read_excel(file_path)
             cible = "Evolution"
             qualitative_vars = ["Type de drépanocytose","Sexe","Origine Géographique","Prise en charge","Diagnostic Catégorisé"]
             for var in qualitative_vars:
