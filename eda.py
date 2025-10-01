@@ -50,6 +50,7 @@ def show_eda():
     # ============================
     with onglets[0]:
         st.header("1️⃣ Données démographiques")
+
         # Sexe
         if 'Sexe' in df_nettoye.columns:
             sexe_counts = df_nettoye['Sexe'].value_counts()
@@ -128,19 +129,24 @@ def show_eda():
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
-        # Affichage des diagnostics par mois
+        # ----------------------------
+        # Graphique 1 : Diagnostics par mois
+        # ----------------------------
         if 'Mois' in df_nettoye.columns and 'Diagnostic Catégorisé' in df_nettoye.columns:
             diag_mois = df_nettoye.groupby(['Mois','Diagnostic Catégorisé']).size().reset_index(name='Nombre')
             diag_mois['Mois'] = pd.Categorical(diag_mois['Mois'], categories=mois_ordre, ordered=True)
             diag_mois = diag_mois.sort_values('Mois')
             st.subheader("Évolution mensuelle des diagnostics")
-            fig = px.line(diag_mois, x='Mois', y='Nombre', color='Diagnostic Catégorisé',
-                          markers=True, title="Diagnostics par mois")
-            st.plotly_chart(fig, use_container_width=True)
+            fig_diag = px.line(diag_mois, x='Mois', y='Nombre', color='Diagnostic Catégorisé',
+                               markers=True, title="Diagnostics par mois")
+            st.plotly_chart(fig_diag, use_container_width=True)
 
-        # Nombre de consultations par urgence (Urgence1 à Urgence6)
+        # ----------------------------
+        # Graphique 2 : Nombre de consultations par urgence
+        # ----------------------------
         urgences = [f'Urgence{i}' for i in range(1,7)]
         consultations_par_urgence = {}
+
         for urg in urgences:
             if urg in df_nettoye.columns:
                 df_urg = df_nettoye[[urg,'Mois']].dropna()
@@ -153,11 +159,11 @@ def show_eda():
             temp_df.index.name = "Mois"
             st.subheader("Nombre de consultations par urgence")
             st.dataframe(temp_df)
-            fig = px.line(temp_df, x=temp_df.index, y=temp_df.columns,
-                          labels={"value":"Nombre de consultations","Mois":"Mois"},
-                          title="Évolution mensuelle des consultations par Urgence",
-                          markers=True)
-            st.plotly_chart(fig, use_container_width=True)
+            fig_urg = px.line(temp_df, x=temp_df.index, y=temp_df.columns,
+                              labels={"value":"Nombre de consultations","Mois":"Mois"},
+                              title="Évolution mensuelle des consultations par Urgence",
+                              markers=True)
+            st.plotly_chart(fig_urg, use_container_width=True)
 
     # ============================
     # Onglet Biomarqueurs
