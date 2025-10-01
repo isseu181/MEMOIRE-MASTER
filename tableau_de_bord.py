@@ -14,11 +14,20 @@ def show_dashboard():
     # ============================
     # Chargement des données
     # ============================
-    df_eda = pd.read_excel("fichier_nettoye.xlsx") if "fichier_nettoye.xlsx" else pd.DataFrame()
-    df_cluster = pd.read_excel("segmentation.xlsx") if "segmentation.xlsx" else pd.DataFrame()
+    try:
+        df_eda = pd.read_excel("fichier_nettoye.xlsx")
+    except:
+        st.warning("⚠️ fichier_nettoye.xlsx introuvable")
+        df_eda = pd.DataFrame()
+
+    try:
+        df_cluster = pd.read_excel("segmentation.xlsx")
+    except:
+        st.warning("⚠️ segmentation.xlsx introuvable")
+        df_cluster = pd.DataFrame()
 
     # ============================
-    # Indicateurs clés en haut
+    # Indicateurs colorés en haut
     # ============================
     patients_total = len(df_cluster) if not df_cluster.empty else len(df_eda)
     urgences_total = len(df_eda)
@@ -39,47 +48,41 @@ def show_dashboard():
     st.markdown("---")
 
     # ============================
-    # Graphiques Démographiques
+    # Grille de graphiques Démographiques
     # ============================
     st.subheader("Données Démographiques")
-    fig_width, fig_height = 600, 400
+    fig_width, fig_height = 550, 400
 
-    # Âge à l’inclusion
-    age_col = "Âge du debut d etude en mois (en janvier 2023)"
-    if age_col in df_eda.columns:
-        df_eda[age_col] = pd.to_numeric(df_eda[age_col], errors='coerce')
-        fig_age = px.histogram(df_eda, x=age_col, nbins=15, title="Âge à l’inclusion")
-        fig_age.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig_age)
-
-    # Type de drépanocytose
-    if "Type de drépanocytose" in df_eda.columns:
-        type_counts = df_eda['Type de drépanocytose'].value_counts()
-        fig_type = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
-                          title="Type de drépanocytose")
-        fig_type.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig_type)
-
-    # Sexe
+    demo_graphs = []
     if 'Sexe' in df_eda.columns:
         sexe_counts = df_eda['Sexe'].value_counts()
-        fig_sexe = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                          title="Répartition par sexe")
+        fig_sexe = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values, title="Sexe")
         fig_sexe.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig_sexe)
+        demo_graphs.append(fig_sexe)
 
-    # Origine Géographique
     if 'Origine Géographique' in df_eda.columns:
         origine_counts = df_eda['Origine Géographique'].value_counts()
-        fig_origine = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                             title="Origine géographique")
+        fig_origine = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values, title="Origine géographique")
         fig_origine.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig_origine)
+        demo_graphs.append(fig_origine)
+
+    if "Type de drépanocytose" in df_eda.columns:
+        type_counts = df_eda['Type de drépanocytose'].value_counts()
+        fig_type = px.pie(type_counts, names=type_counts.index, values=type_counts.values, title="Type de drépanocytose")
+        fig_type.update_layout(width=fig_width, height=fig_height)
+        demo_graphs.append(fig_type)
+
+    # Affichage des graphiques démographiques en grille
+    for i in range(0, len(demo_graphs), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i+j < len(demo_graphs):
+                col.plotly_chart(demo_graphs[i+j])
 
     st.markdown("---")
 
     # ============================
-    # Biomarqueurs
+    # Biomarqueurs (moyennes)
     # ============================
     st.subheader("Biomarqueurs (moyennes)")
     bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
@@ -99,24 +102,33 @@ def show_dashboard():
     # Analyse Temporelle
     # ============================
     st.subheader("Analyse Temporelle")
-    # Nombre de consultations par mois
+    time_graphs = []
+
+    # Consultations par mois
     if 'Mois' in df_eda.columns:
-        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
+        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Aout",
                       "Septembre","Octobre","Novembre","Décembre"]
         df_eda['Mois'] = pd.Categorical(df_eda['Mois'], categories=mois_ordre, ordered=True)
         mois_counts = df_eda['Mois'].value_counts().sort_index()
-        fig = px.bar(x=mois_counts.index, y=mois_counts.values, text=mois_counts.values,
-                     title="Nombre de consultations par mois")
-        fig.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig)
+        fig_consult = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
+                              title="Nombre de consultations par mois", text=mois_counts.values)
+        fig_consult.update_layout(width=fig_width, height=fig_height)
+        time_graphs.append(fig_consult)
 
     # Diagnostics par mois
     if 'Diagnostic Catégorisé' in df_eda.columns and 'Mois' in df_eda.columns:
         diag_month = df_eda.groupby(['Mois','Diagnostic Catégorisé']).size().unstack(fill_value=0)
-        fig = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
-                      title="Diagnostics par mois")
-        fig.update_layout(width=fig_width, height=fig_height)
-        st.plotly_chart(fig)
+        fig_diag = px.line(diag_month, x=diag_month.index, y=diag_month.columns, markers=True,
+                           title="Diagnostics par mois")
+        fig_diag.update_layout(width=fig_width, height=fig_height)
+        time_graphs.append(fig_diag)
+
+    # Affichage des graphiques temporels en grille
+    for i in range(0, len(time_graphs), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            if i+j < len(time_graphs):
+                col.plotly_chart(time_graphs[i+j])
 
     st.markdown("---")
 
