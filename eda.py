@@ -58,7 +58,6 @@ def show_eda():
             st.header("📌 Informations démographiques")
             st.write("Nombre total de patients:", len(identite))
 
-            # Sexe
             if 'Sexe' in identite.columns:
                 sexe_counts = identite['Sexe'].value_counts()
                 fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
@@ -66,7 +65,6 @@ def show_eda():
                 fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Origine géographique
             if 'Origine Géographique' in identite.columns:
                 origine_counts = identite['Origine Géographique'].value_counts()
                 fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
@@ -74,7 +72,6 @@ def show_eda():
                 fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Scolarité
             if "Niveau d'instruction scolarité" in identite.columns:
                 scolar_counts = identite["Niveau d'instruction scolarité"].value_counts()
                 fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
@@ -82,7 +79,6 @@ def show_eda():
                 fig.update_traces(textinfo='percent+label', pull=0.05)
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Âge
             age_col = "Âge du debut d etude en mois (en janvier 2023)"
             if age_col in identite.columns:
                 identite[age_col] = pd.to_numeric(identite[age_col], errors='coerce')
@@ -102,23 +98,6 @@ def show_eda():
             if 'Type de drépanocytose' in drepano.columns:
                 type_counts = drepano['Type de drépanocytose'].value_counts()
                 st.table(type_counts)
-
-            # Paramètres biologiques
-            bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "Nbre de GB (/mm3)"]
-            stats_data = {}
-            for col in bio_cols:
-                if col in drepano.columns:
-                    drepano[col] = pd.to_numeric(drepano[col], errors='coerce')
-                    stats_data[col] = {
-                        "Moyenne": drepano[col].mean(),
-                        "Médiane": drepano[col].median(),
-                        "Min": drepano[col].min(),
-                        "Max": drepano[col].max()
-                    }
-            if stats_data:
-                stats_df = pd.DataFrame(stats_data).T.round(2)
-                st.subheader("Paramètres biologiques sélectionnés")
-                st.table(stats_df)
 
     # ===========================
     # Onglet 3 : Temporel
@@ -142,26 +121,47 @@ def show_eda():
     # Onglet 4 : Biomarqueurs et analyse bivariée
     # ===========================
     with onglets[3]:
-        st.header("📌 Analyse bivariée : Evolution vs autres variables")
+        st.header("📌 Biomarqueurs et analyse bivariée")
         try:
             df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
             cible = "Evolution"
+
+            # Tableau des biomarqueurs
+            bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+            st.subheader("📌 Tableau des biomarqueurs")
+            stats_data = {}
+            for col in bio_cols:
+                if col in df_nettoye.columns:
+                    df_nettoye[col] = pd.to_numeric(df_nettoye[col], errors='coerce')
+                    stats_data[col] = {
+                        "Moyenne": df_nettoye[col].mean(),
+                        "Médiane": df_nettoye[col].median(),
+                        "Min": df_nettoye[col].min(),
+                        "Max": df_nettoye[col].max()
+                    }
+            if stats_data:
+                stats_df = pd.DataFrame(stats_data).T.round(2)
+                st.table(stats_df)
+
+            # Analyse bivariée
             if cible in df_nettoye.columns:
+                st.subheader("📌 Analyse bivariée")
+
                 variables_qualitatives = ["Type de drépanocytose","Sexe","Origine Géographique","Diagnostic Catégorisé"]
                 variables_quantitatives = ["Âge du debut d etude en mois (en janvier 2023)", 
                                            "Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S"]
 
-                st.subheader("Variables qualitatives")
+                st.markdown("### Variables qualitatives")
                 for var in variables_qualitatives:
                     if var in df_nettoye.columns:
                         cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
                         fig = px.bar(cross_tab, barmode="group", text_auto=".2f", title=f"{var} vs {cible}")
                         st.plotly_chart(fig, use_container_width=True)
 
-                st.subheader("Variables quantitatives")
+                st.markdown("### Variables quantitatives")
                 for var in variables_quantitatives:
                     if var in df_nettoye.columns:
                         stats_group = df_nettoye.groupby(cible)[var].agg(["mean","median","min","max"]).round(2)
                         st.table(stats_group)
         except:
-            st.warning("⚠️ Impossible de charger les données pour l'analyse bivariée.")
+            pass
