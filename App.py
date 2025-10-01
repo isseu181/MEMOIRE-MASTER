@@ -31,7 +31,6 @@ if page == "Chapitre 1 : Cadre théorique":
 # Chapitre 2 : Analyse exploratoire
 # ============================
 elif page == "Chapitre 2 : Analyse exploratoire":
-    st.title("Analyse exploratoire des données")
     eda.show_eda()
 
 # ============================
