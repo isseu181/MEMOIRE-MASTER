@@ -126,7 +126,7 @@ def show_eda():
 
         # Définir l'ordre chronologique des mois
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+                      "Juillet","Aout","Septembre","Octobre","Novembre","Décembre"]
 
         # ----------------------------
         # Graphique 1 : Diagnostics par mois
@@ -189,3 +189,4 @@ def show_eda():
         if bio_data:
             bio_df = pd.DataFrame(bio_data).T.round(2)
             st.table(bio_df)
+
