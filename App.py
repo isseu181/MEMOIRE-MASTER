@@ -1,6 +1,6 @@
 # app.py
 import streamlit as st
-import eda, clustering, classification, deployment, tableau_de_bord  # Ajout du module tableau_de_bord
+import eda, clustering, classification, deployment, tableau_de_bord
 
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
