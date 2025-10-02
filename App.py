@@ -9,10 +9,10 @@ st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 # ============================
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Aller à :", [
-    "Chapitre 1 : Cadre théorique",
-    "Chapitre 2 : Analyse exploratoire",
-    "Chapitre 3 : Classification non supervisée",
-    "Chapitre 4 : Classification supervisée",
+    "A Propos",
+    "Analyse exploratoire",
+    "Classification non supervisée",
+    "Classification supervisée",
     "Déploiement du modèle",
     "Tableau de bord"
 ])
@@ -20,8 +20,8 @@ page = st.sidebar.radio("Aller à :", [
 # ============================
 # Chapitre 1 : Cadre théorique
 # ============================
-if page == "Chapitre 1 : Cadre théorique":
-    st.title("Cadre théorique et conceptuel")
+if page == "A Propos":
+    st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
     st.markdown("""
     - Présentation de l’USAD  
     - Généralités sur la drépanocytose  
