@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest
+# deployment.py - Déploiement Random Forest (compact)
 # ================================
 import streamlit as st
 import pandas as pd
@@ -9,17 +9,14 @@ def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
     st.markdown("<h1 style='text-align:center;color:darkgreen;'>🩺 Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
 
-    # -------------------------------
     # Charger le modèle et le scaler
-    # -------------------------------
     try:
         model = joblib.load("random_forest_model.pkl")  
         scaler = joblib.load("scaler.pkl")              
     except:
-        st.error("❌ Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
+        st.error("❌ Impossible de charger le modèle ou le scaler.")
         return
 
-    # Variables quantitatives
     quantitative_vars = [
         'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
         'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
@@ -29,7 +26,6 @@ def show_deployment():
         'CRP Si positive (Valeur)',"Taux d'Hb (g/dL)","% d'Hb S","% d'Hb F"
     ]
 
-    # Variables binaires
     binary_vars = [
         'Pâleur','Souffle systolique fonctionnel','Vaccin contre méningocoque',
         'Splénomégalie','Prophylaxie à la pénicilline','Parents Salariés',
@@ -37,64 +33,43 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### 📝 Remplissez le formulaire pour prédire l’évolution clinique d’un patient.")
-    st.markdown("⚠️ Pour les variables binaires, **OUI = 1, NON = 0**")
-
-    # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
-    diagnostic_cols = [c for c in model_features if "Diagnostic Catégorisé_" in c]
-    mois_cols = [c for c in model_features if "Mois_" in c]
+    diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
+    mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in diagnostic_cols]
-    mois_categories = [c.replace("Mois_", "") for c in mois_cols]
+    st.markdown("### 📝 Formulaire compact (OUI=1 / NON=0)")
 
-    # -------------------------------
-    # Formulaire patient
-    # -------------------------------
     with st.form("patient_form"):
-        col1, col2 = st.columns(2)
+        inputs = {}
 
-        # Colonne 1 : Variables quantitatives
-        with col1:
-            st.subheader("📊 Variables quantitatives")
-            quantitative_inputs = {}
-            for var in quantitative_vars:
-                quantitative_inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+        # Quantitatives
+        st.subheader("📊 Variables quantitatives")
+        for var in quantitative_vars:
+            inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
-        # Colonne 2 : Variables qualitatives / ordinales / catégorielles
-        with col2:
-            st.subheader("⚖️ Variables qualitatives / ordinales / catégorielles")
+        # Qualitatives binaires + ordinales + catégorielles
+        st.subheader("⚖️ Variables binaires, ordinales et catégorielles")
 
-            # Variables binaires
-            binary_inputs = {}
-            for var in binary_vars:
-                binary_inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
+        # Binaires
+        for var in binary_vars:
+            inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-            # Variables ordinales
-            niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
-            niveau_instruction = st.selectbox(
-                "Niveau d'instruction scolarité",
-                options=[0,1,2,3,4],
-                format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
-            )
+        # Ordinales
+        inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
+        inputs["Niveau d'instruction scolarité"] = st.selectbox(
+            "Niveau d'instruction scolarité",
+            options=[0,1,2,3,4],
+            format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
+        )
 
-            # Variables catégorielles
-            diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-            mois = st.selectbox("Mois", options=mois_categories)
+        # Catégorielles
+        inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
+        inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
 
         submitted = st.form_submit_button("🔮 Prédire")
 
-    # -------------------------------
-    # Prédiction
-    # -------------------------------
     if submitted:
-        input_dict = {**quantitative_inputs, **binary_inputs,
-                      'NiveauUrgence': niveau_urgence,
-                      "Niveau d'instruction scolarité": niveau_instruction,
-                      "Diagnostic Catégorisé": diagnostic,
-                      "Mois": mois}
-
-        input_df = pd.DataFrame([input_dict])
+        input_df = pd.DataFrame([inputs])
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
 
         for col in model_features:
