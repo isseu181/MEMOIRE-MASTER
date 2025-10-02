@@ -14,7 +14,7 @@ def show_deployment():
         model = joblib.load("random_forest_model.pkl")  
         scaler = joblib.load("scaler.pkl")              
     except:
-        st.error("❌ Impossible de charger le modèle ou le scaler.")
+        st.error(" Impossible de charger le modèle ou le scaler.")
         return
 
     quantitative_vars = [
@@ -37,19 +37,16 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
     mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    st.markdown("### 📝 Formulaire compact (OUI=1 / NON=0)")
+    st.markdown("### Remplissez le formulaire pour prédire l’évolution clinique d’un patient")
 
     with st.form("patient_form"):
         inputs = {}
 
         # Quantitatives
-        st.subheader("📊 Variables quantitatives")
         for var in quantitative_vars:
             inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
         # Qualitatives binaires + ordinales + catégorielles
-        st.subheader("⚖️ Variables binaires, ordinales et catégorielles")
-
         # Binaires
         for var in binary_vars:
             inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
@@ -82,8 +79,9 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        st.subheader("📌 Résultat de la prédiction")
+        st.subheader(" Résultat de la prédiction")
         if pred_class == 0:
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+
