@@ -17,7 +17,7 @@ def show_deployment():
         model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
         scaler = joblib.load("scaler.pkl")              # Scaler utilisé pour les variables quantitatives
     except:
-        st.error("❌ Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
+        st.error(" Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
         return
 
     # Variables quantitatives
@@ -38,7 +38,7 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### 📝 Remplissez le formulaire pour prédire l’évolution clinique d’un patient.")
+    st.markdown("###  Remplissez le formulaire pour prédire l’évolution clinique d’un patient.")
 
     # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
@@ -57,14 +57,14 @@ def show_deployment():
 
         # Colonne 1 : Variables quantitatives
         with col1:
-            st.subheader("📊 Variables quantitatives")
+            st.subheader(" Variables quantitatives")
             quantitative_inputs = {}
             for var in quantitative_vars:
                 quantitative_inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
         # Colonne 2 : Variables qualitatives / ordinales / catégorielles
         with col2:
-            st.subheader("⚖️ Variables qualitatives / ordinales / catégorielles")
+            st.subheader(" Variables qualitatives  Oui=1 /Non=0" )
 
             # Variables binaires
             binary_inputs = {}
@@ -123,6 +123,7 @@ def show_deployment():
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+
 
 
 
