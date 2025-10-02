@@ -62,7 +62,7 @@ def show_classification():
     df_selected.replace(ordinal_mappings, inplace=True)
 
     # Variables catégorielles en dummies
-    df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé','Mois'], drop_first=True)
+    df_selected = pd.get_dummies(df_selected, columns=['Diagnostic Catégorisé','Mois'])
 
     # Standardisation
     quantitative_vars = [
@@ -218,3 +218,4 @@ def show_classification():
             st.plotly_chart(fig_imp)
         else:
             st.info("Pas de variable importance disponible pour ce modèle.")
+
