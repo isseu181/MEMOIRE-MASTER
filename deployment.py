@@ -1,4 +1,4 @@
-
+voici le code du deploiment # ================================
 # deployment.py - Déploiement Random Forest
 # ================================
 import streamlit as st
@@ -13,7 +13,7 @@ def show_deployment():
     # -------------------------------
     # Charger le modèle et le scaler
     # -------------------------------
-    model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest 
+    model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
     scaler = joblib.load("scaler.pkl")             # Scaler utilisé pour les variables quantitatives
 
     # Variables quantitatives
@@ -103,5 +103,4 @@ def show_deployment():
             st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"Évolution prévue : **Complications** ⚠️ (Probabilité : {pred_proba:.2f})")
-
 
