@@ -97,7 +97,7 @@ def show_deployment():
         input_df = pd.DataFrame([input_dict])
 
         # Encodage dummies identique à l'entraînement
-        input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"], drop_first=True)
+        input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
 
         # Ajouter les colonnes manquantes avec 0
         for col in model_features:
@@ -122,3 +122,4 @@ def show_deployment():
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+
