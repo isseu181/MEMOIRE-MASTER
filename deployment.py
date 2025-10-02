@@ -1,4 +1,4 @@
-i
+
 # ================================
 # deployment.py - Déploiement Random Forest
 # ================================
@@ -123,5 +123,6 @@ def show_deployment():
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+
 
 
