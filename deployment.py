@@ -1,4 +1,4 @@
-i
+
 # ====================================
 # deployment.py - Déploiement Random Forest
 # ====================================
@@ -132,4 +132,5 @@ def show_deployment():
         col_res2.metric("Probabilité de complication", f"{pred_proba*100:.1f} %")
 
         
+
 
