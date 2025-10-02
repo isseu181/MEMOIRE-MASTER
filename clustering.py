@@ -66,9 +66,9 @@ def show_clustering():
     }
 
     df_selected.replace(binary_mappings, inplace=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"], drop_first=False)
-    df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"], drop_first=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Type de drépanocytose"], drop_first=False)
+    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"])
+    df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"])
+    df_selected = pd.get_dummies(df_selected, columns=["Type de drépanocytose"])
 
     # ================================
     # 4. Standardisation
@@ -181,5 +181,6 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
+
 
 
