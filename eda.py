@@ -110,7 +110,7 @@ def show_eda():
     with onglets[2]:
         st.header("3️⃣ Analyse temporelle")
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                      "Juillet","Aout","Septembre","Octobre","Novembre","Décembre"]
+                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
         # Diagnostics par mois
         if "Mois" in df_nettoye.columns and "Diagnostic Catégorisé" in df_nettoye.columns:
@@ -159,3 +159,4 @@ def show_eda():
                 }
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
+
