@@ -17,7 +17,7 @@ def show_deployment():
         model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
         scaler = joblib.load("scaler.pkl")              # Scaler utilisé pour les variables quantitatives
     except:
-        st.error("❌ Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
+        st.error(" Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
         return
 
     # Variables quantitatives
@@ -38,7 +38,7 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### 📝 Remplissez le formulaire ci-dessous pour prédire l’évolution clinique d’un patient.")
+    st.markdown("###  Remplissez le formulaire ci-dessous pour prédire l’évolution clinique d’un patient.")
 
     # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
@@ -56,18 +56,18 @@ def show_deployment():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.subheader("📊 Variables quantitatives")
+            st.subheader(" Variables quantitatives")
             quantitative_inputs = {}
             for var in quantitative_vars:
                 quantitative_inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
         with col2:
-            st.subheader("⚖️ Variables binaires (OUI=1, NON=0)")
+            st.subheader(" Variables binaires (OUI=1, NON=0)")
             binary_inputs = {}
             for var in binary_vars:
                 binary_inputs[var] = st.selectbox(var, options=[0,1])
 
-        st.subheader("📌 Variables ordinales")
+        st.subheader(" Variables ordinales")
         niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
         niveau_instruction = st.selectbox(
             "Niveau d'instruction scolarité",
@@ -75,7 +75,7 @@ def show_deployment():
             format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
         )
 
-        st.subheader("📌 Variables catégorielles")
+        st.subheader(" Variables catégorielles")
         diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
         mois = st.selectbox("Mois", options=mois_categories)
 
@@ -115,7 +115,7 @@ def show_deployment():
         # -------------------------------
         # Résultat visuel
         # -------------------------------
-        st.subheader("📌 Résultat de la prédiction")
+        st.subheader(" Résultat de la prédiction")
         col_res1, col_res2 = st.columns([2,1])
 
         if pred_class == 0:
@@ -126,7 +126,4 @@ def show_deployment():
         # Jauge visuelle pour mieux interpréter
         col_res2.metric("Probabilité de complication", f"{pred_proba*100:.1f} %")
 
-        # Afficher l’importance des variables du modèle (optionnel)
-        st.markdown("### 🔎 Importance des variables principales")
-        importances = pd.Series(model.feature_importances_, index=model_features)
-        st.bar_chart(importances.sort_values(ascending=False).head(10))
+        
