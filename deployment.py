@@ -1,4 +1,4 @@
-# ================================
+voici le code du deploiment # ================================
 # deployment.py - Déploiement Random Forest
 # ================================
 import streamlit as st
@@ -8,17 +8,13 @@ import joblib
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
-    st.markdown("<h1 style='text-align:center;color:darkgreen;'>🩺 Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:darkgreen;'>Déploiement - Random Forest</h1>", unsafe_allow_html=True)
 
     # -------------------------------
     # Charger le modèle et le scaler
     # -------------------------------
-    try:
-        model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
-        scaler = joblib.load("scaler.pkl")              # Scaler utilisé pour les variables quantitatives
-    except:
-        st.error("❌ Impossible de charger le modèle ou le scaler. Vérifiez les fichiers `random_forest_model.pkl` et `scaler.pkl`.")
-        return
+    model = joblib.load("random_forest_model.pkl")  # Modèle Random Forest sauvegardé
+    scaler = joblib.load("scaler.pkl")             # Scaler utilisé pour les variables quantitatives
 
     # Variables quantitatives
     quantitative_vars = [
@@ -38,7 +34,7 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### 📝 Remplissez le formulaire ci-dessous pour prédire l’évolution clinique d’un patient.")
+    st.markdown("### Utilisez le formulaire ci-dessous pour prédire l’évolution d’un patient selon le modèle Random Forest.")
 
     # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
@@ -49,41 +45,30 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in diagnostic_cols]
     mois_categories = [c.replace("Mois_", "") for c in mois_cols]
 
-    # -------------------------------
-    # Formulaire patient
-    # -------------------------------
     with st.form("patient_form"):
-        col1, col2 = st.columns(2)
+        st.subheader("Variables quantitatives")
+        quantitative_inputs = {}
+        for var in quantitative_vars:
+            quantitative_inputs[var] = st.number_input(var, value=0.0)
 
-        with col1:
-            st.subheader("📊 Variables quantitatives")
-            quantitative_inputs = {}
-            for var in quantitative_vars:
-                quantitative_inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+        st.subheader("Variables binaires (OUI=1, NON=0)")
+        binary_inputs = {}
+        for var in binary_vars:
+            binary_inputs[var] = st.selectbox(var, options=[0,1])
 
-        with col2:
-            st.subheader("⚖️ Variables binaires (OUI=1, NON=0)")
-            binary_inputs = {}
-            for var in binary_vars:
-                binary_inputs[var] = st.selectbox(var, options=[0,1])
-
-        st.subheader("📌 Variables ordinales")
+        st.subheader("Variables ordinales")
         niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
         niveau_instruction = st.selectbox(
-            "Niveau d'instruction scolarité",
-            options=[0,1,2,3,4],
-            format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
+            "Niveau d'instruction scolarité (0=NON,1=Maternelle,2=Elémentaire,3=Secondaire,4=Supérieur)",
+            options=[0,1,2,3,4]
         )
 
-        st.subheader("📌 Variables catégorielles")
+        st.subheader("Variables catégorielles")
         diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
         mois = st.selectbox("Mois", options=mois_categories)
 
-        submitted = st.form_submit_button("🔮 Prédire")
+        submitted = st.form_submit_button("Prédire")
 
-    # -------------------------------
-    # Prédiction
-    # -------------------------------
     if submitted:
         # Préparer les données sous forme de DataFrame
         input_dict = {**quantitative_inputs, **binary_inputs,
@@ -112,21 +97,10 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        # -------------------------------
-        # Résultat visuel
-        # -------------------------------
-        st.subheader("📌 Résultat de la prédiction")
-        col_res1, col_res2 = st.columns([2,1])
-
+        # Résultat
+        st.subheader("Résultat de la prédiction")
         if pred_class == 0:
-            col_res1.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
+            st.success(f"Évolution prévue : **Favorable** ✅ (Probabilité de complication : {pred_proba:.2f})")
         else:
-            col_res1.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+            st.error(f"Évolution prévue : **Complications** ⚠️ (Probabilité : {pred_proba:.2f})")
 
-        # Jauge visuelle pour mieux interpréter
-        col_res2.metric("Probabilité de complication", f"{pred_proba*100:.1f} %")
-
-        # Afficher l’importance des variables du modèle (optionnel)
-        st.markdown("### 🔎 Importance des variables principales")
-        importances = pd.Series(model.feature_importances_, index=model_features)
-        st.bar_chart(importances.sort_values(ascending=False).head(10))
