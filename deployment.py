@@ -3,7 +3,6 @@
 # ================================
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
 
 def show_deployment():
@@ -38,7 +37,7 @@ def show_deployment():
         'Douleur provoquée (Os.Abdomen)','Vaccin contre pneumocoque'
     ]
 
-    st.markdown("### 📝 Remplissez le formulaire ci-dessous pour prédire l’évolution clinique d’un patient.")
+    st.markdown("### 📝 Remplissez le formulaire pour prédire l’évolution clinique d’un patient.")
 
     # Extraire les catégories exactes du modèle entraîné
     model_features = model.feature_names_in_
@@ -55,29 +54,33 @@ def show_deployment():
     with st.form("patient_form"):
         col1, col2 = st.columns(2)
 
+        # Colonne 1 : Variables quantitatives
         with col1:
             st.subheader("📊 Variables quantitatives")
             quantitative_inputs = {}
             for var in quantitative_vars:
                 quantitative_inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
+        # Colonne 2 : Variables qualitatives / ordinales / catégorielles
         with col2:
-            st.subheader("⚖️ Variables binaires (OUI=1, NON=0)")
+            st.subheader("⚖️ Variables qualitatives / ordinales / catégorielles")
+
+            # Variables binaires
             binary_inputs = {}
             for var in binary_vars:
                 binary_inputs[var] = st.selectbox(var, options=[0,1])
 
-        st.subheader("📌 Variables ordinales")
-        niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
-        niveau_instruction = st.selectbox(
-            "Niveau d'instruction scolarité",
-            options=[0,1,2,3,4],
-            format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
-        )
+            # Variables ordinales
+            niveau_urgence = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
+            niveau_instruction = st.selectbox(
+                "Niveau d'instruction scolarité",
+                options=[0,1,2,3,4],
+                format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
+            )
 
-        st.subheader("📌 Variables catégorielles")
-        diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-        mois = st.selectbox("Mois", options=mois_categories)
+            # Variables catégorielles
+            diagnostic = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
+            mois = st.selectbox("Mois", options=mois_categories)
 
         submitted = st.form_submit_button("🔮 Prédire")
 
@@ -85,7 +88,6 @@ def show_deployment():
     # Prédiction
     # -------------------------------
     if submitted:
-        # Préparer les données sous forme de DataFrame
         input_dict = {**quantitative_inputs, **binary_inputs,
                       'NiveauUrgence': niveau_urgence,
                       "Niveau d'instruction scolarité": niveau_instruction,
@@ -116,11 +118,7 @@ def show_deployment():
         # Résultat visuel
         # -------------------------------
         st.subheader("📌 Résultat de la prédiction")
-        col_res1, col_res2 = st.columns([2,1])
-
         if pred_class == 0:
-            col_res1.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
+            st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
-            col_res1.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
-
-        
+            st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
