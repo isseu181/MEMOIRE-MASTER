@@ -18,32 +18,38 @@ page = st.sidebar.radio("Aller à :", [
 ])
 
 # ============================
-# Chapitre 1 : Cadre théorique
+# A Propos
 # ============================
 if page == "A Propos":
     st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
     st.markdown("""
-    - Présentation de l’USAD  
-    - Généralités sur la drépanocytose  
-    - Principes de l’intelligence artificielle appliquée à la santé
+    Ce projet a pour objectif d’analyser les urgences drépanocytaires , 
+    d’identifier leurs caractéristiques cliniques, biologiques et temporelles, et de prédire leur évolution 
+    à l’aide de méthodes d’intelligence artificielle.
+    
+    **Points clés du projet :**
+    - Analyse descriptive (socio-démographique, clinique, temporelle et biologique)
+    - Classification non supervisée pour détecter des profils de patients
+    - Classification supervisée pour prédire l’évolution (variable cible : *Evolution*)
+    - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
 
 # ============================
-# Chapitre 2 : Analyse exploratoire
+# Analyse exploratoire
 # ============================
-elif page == "Chapitre 2 : Analyse exploratoire":
+elif page == "Analyse exploratoire":
     eda.show_eda()
 
 # ============================
-# Chapitre 3 : Classification non supervisée
+# Classification non supervisée
 # ============================
-elif page == "Chapitre 3 : Classification non supervisée":
+elif page == "Classification non supervisée":
     clustering.show_clustering()
 
 # ============================
-# Chapitre 4 : Classification supervisée
+# Classification supervisée
 # ============================
-elif page == "Chapitre 4 : Classification supervisée":
+elif page == "Classification supervisée":
     classification.show_classification()
 
 # ============================
