@@ -7,7 +7,7 @@ import joblib
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
-    st.markdown("<h1 style='text-align:center;color:darkgreen;'>🩺 Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:darkgreen;'> Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
 
     # Charger le modèle et le scaler
     try:
@@ -84,4 +84,5 @@ def show_deployment():
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+
 
