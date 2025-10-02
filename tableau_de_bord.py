@@ -26,7 +26,7 @@ except:
 # FONCTION TABLEAU DE BORD
 # ============================
 def show_dashboard():
-    st.title("📊 Tableau de bord - Suivi drépanocytose")
+    st.title(" Tableau de bord - Suivi drépanocytose")
 
     # ============================
     # INDICATEURS EN HAUT
@@ -79,7 +79,7 @@ def show_dashboard():
     # 5. Courbe consultations par mois
     if "Mois" in df_eda.columns:
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet",
-                      "Aout","Septembre","Octobre","Novembre","Décembre"]
+                      "Août","Septembre","Octobre","Novembre","Décembre"]
         df_eda["Mois"] = pd.Categorical(df_eda["Mois"], categories=mois_ordre, ordered=True)
         mois_counts = df_eda.groupby("Mois").size().reindex(mois_ordre)
         fig = px.line(x=mois_counts.index, y=mois_counts.values, markers=True,
@@ -138,6 +138,7 @@ def show_dashboard():
 # ============================
 if __name__ == "__main__":
     show_dashboard()
+
 
 
 
