@@ -102,7 +102,7 @@ def show_clustering():
         2. **Encodage** : transformation des variables qualitatives (binaire et catégorielle).  
         3. **Standardisation** : mise à l’échelle des variables quantitatives en z-scores.  
         4. **Clustering KMeans** : segmentation des patients en groupes homogènes.  
-        5. **Analyse en Composantes Principales (ACP)** : visualisation 2D des clusters.  
+        5. **Analyse en Composantes Principales (ACP)** : visualisation  des clusters.  
         """)
 
         inertia = []
@@ -180,6 +180,7 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
+
 
 
 
