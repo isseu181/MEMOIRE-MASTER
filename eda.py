@@ -21,7 +21,6 @@ def oui_non_vers_binaire(valeur):
 
 def convertir_df_oui_non(df, exclude_columns=None):
     df = df.copy()
-    # Exclure par défaut "Niveau d'instruction scolarité"
     default_exclude = ["Niveau d'instruction scolarité"]
     if exclude_columns:
         exclude_columns = list(set(exclude_columns + default_exclude))
@@ -74,7 +73,7 @@ def show_eda():
     cliniques = ["Type de drépanocytose","Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C",
                  "Nbre de GB (/mm3)","% d'HB A2","Nbre de PLT (/mm3)","GsRh",
                  "Âge de début des signes (en mois)","Âge de découverte de la drépanocytose (en mois)",
-                 "Âge début de suivi du traitement (en mois)",
+                 "Circonstances Courants","Autres (nommer)","Âge début de suivi du traitement (en mois)",
                  "L'hydroxyurée","Echange transfusionnelle","Prophylaxie à la pénicilline",
                  "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
                  "HDJ","CVO","Anémie","AVC","STA","Priapisme","Infections",
@@ -100,7 +99,12 @@ def show_eda():
                 if var_choisie:
                     # Qualitative
                     if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
-                        counts = df_seg[var_choisie].value_counts()
+                        # Si c'est une variable binaire 0/1, convertir pour l'affichage
+                        if set(df_seg[var_choisie].dropna().unique()) <= {0, 1}:
+                            counts = df_seg[var_choisie].map({1: "Oui", 0: "Non"}).value_counts()
+                        else:
+                            counts = df_seg[var_choisie].value_counts()
+
                         fig = px.pie(counts, names=counts.index, values=counts.values,
                                      title=f"Répartition de {var_choisie}")
                         fig.update_traces(textinfo="percent+label", pull=0.05)
@@ -129,6 +133,15 @@ def show_eda():
                             fig_bi = px.bar(pivot, barmode="group", title=f"{var_choisie} vs Evolution")
                             st.plotly_chart(fig_bi, use_container_width=True)
 
+                # Répartition des diagnostics
+                if "Diagnostic Catégorisé" in df_seg.columns:
+                    st.subheader("Répartition des diagnostics")
+                    diag_counts = df_seg["Diagnostic Catégorisé"].value_counts()
+                    fig_diag_dist = px.pie(diag_counts, names=diag_counts.index, values=diag_counts.values,
+                                           title="Répartition des diagnostics")
+                    fig_diag_dist.update_traces(textinfo="percent+label", pull=0.05)
+                    st.plotly_chart(fig_diag_dist, use_container_width=True)
+
     # ============================
     # Onglet Temporel
     # ============================
@@ -138,16 +151,32 @@ def show_eda():
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
         if not df_nettoye.empty:
+            # --------------------
+            # Courbe Date d'inclusion
+            # --------------------
+            if "Date d'inclusion" in df_nettoye.columns:
+                df_nettoye["Date d'inclusion"] = pd.to_datetime(df_nettoye["Date d'inclusion"], errors='coerce')
+                df_date = df_nettoye.dropna(subset=["Date d'inclusion"])
+                if not df_date.empty:
+                    date_counts = df_date.groupby("Date d'inclusion").size().reset_index(name="Nombre")
+                    fig_date = px.line(date_counts, x="Date d'inclusion", y="Nombre", markers=True,
+                                       title="Nombre d'inclusions par date")
+                    st.plotly_chart(fig_date, use_container_width=True)
+
+            # --------------------
             # Diagnostics par mois
+            # --------------------
             if "Mois" in df_nettoye.columns and "Diagnostic Catégorisé" in df_nettoye.columns:
-                diag_mois = df_nettoye.groupby(["Mois","Diagnostic Catégorisé"]).size().reset_index(name="Nombre")
-                diag_mois["Mois"] = pd.Categorical(diag_mois["Mois"], categories=mois_ordre, ordered=True)
+                df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
+                diag_mois = df_nettoye.groupby(["Mois", "Diagnostic Catégorisé"]).size().reset_index(name="Nombre")
                 diag_mois = diag_mois.sort_values("Mois")
                 fig_diag = px.line(diag_mois, x="Mois", y="Nombre", color="Diagnostic Catégorisé",
                                    markers=True, title="Diagnostics par mois")
                 st.plotly_chart(fig_diag, use_container_width=True)
 
+            # --------------------
             # Consultations par mois
+            # --------------------
             if "Mois" in df_nettoye.columns:
                 df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
                 mois_counts = df_nettoye.groupby("Mois").size().reset_index(name="Nombre")
@@ -155,7 +184,9 @@ def show_eda():
                                    title="Consultations totales par mois")
                 st.plotly_chart(fig_mois, use_container_width=True)
 
+            # --------------------
             # Consultations par NiveauUrgence
+            # --------------------
             if "NiveauUrgence" in df_nettoye.columns:
                 urgence_counts = df_nettoye["NiveauUrgence"].value_counts().reset_index()
                 urgence_counts.columns = ["NiveauUrgence", "Nombre"]
