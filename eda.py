@@ -68,12 +68,11 @@ def show_eda():
     cliniques = ["Type de drépanocytose","Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C",
                  "Nbre de GB (/mm3)","% d'HB A2","Nbre de PLT (/mm3)","GsRh",
                  "Âge de début des signes (en mois)","Âge de découverte de la drépanocytose (en mois)",
-                 "Circonstances Courants","Autres (nommer)","Âge début de suivi du traitement (en mois)",
+                 "Âge début de suivi du traitement (en mois)",
                  "L'hydroxyurée","Echange transfusionnelle","Prophylaxie à la pénicilline",
                  "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
                  "HDJ","CVO","Anémie","AVC","STA","Priapisme","Infections",
                  "Nbre de transfusion avant 2017","Nbre de transfusion Entre 2017 et 2023","Ictère"]
-    temporelles = ["Date d'inclusion"]
     biomarqueurs = ["Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C","Nbre de GB (/mm3)","Nbre de PLT (/mm3)"]
 
     onglet_dict = {
@@ -184,4 +183,5 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
+
 
