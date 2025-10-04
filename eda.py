@@ -1,4 +1,4 @@
-i# eda.py
+# eda.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -184,3 +184,4 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
+
