@@ -1,4 +1,4 @@
-i# eda.py
+# eda.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -147,4 +147,5 @@ def show_eda():
                 fig_urgence = px.bar(urgence_counts, x="NiveauUrgence", y="Nombre",
                                      title="Consultations par Niveau d'Urgence")
                 st.plotly_chart(fig_urgence, use_container_width=True)
+
 
