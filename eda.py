@@ -1,7 +1,10 @@
-# eda.py
+i# eda.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
+from scipy.stats import norm
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -90,29 +93,40 @@ def show_eda():
             variables = [v for v in variables if v in df_seg.columns]
 
             # Choix variable
-            var_choisie = st.selectbox("Choisissez une variable à afficher", variables)
+            if i != 3:  # Onglet Biomarqueurs n'a pas besoin de selectbox
+                var_choisie = st.selectbox("Choisissez une variable à afficher", variables)
 
-            if var_choisie:
-                # Univariée : Qualitative
-                if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
-                    counts = df_seg[var_choisie].value_counts()
-                    fig = px.pie(counts, names=counts.index, values=counts.values,
-                                 title=f"Répartition de {var_choisie}")
-                    fig.update_traces(textinfo="percent+label", pull=0.05)
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    # Univariée : Quantitative
-                    fig = px.histogram(df_seg, x=var_choisie, nbins=20, title=f"Distribution de {var_choisie}")
-                    st.plotly_chart(fig, use_container_width=True)
+                if var_choisie:
+                    # Univariée : Qualitative
+                    if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
+                        counts = df_seg[var_choisie].value_counts()
+                        fig = px.pie(counts, names=counts.index, values=counts.values,
+                                     title=f"Répartition de {var_choisie}")
+                        fig.update_traces(textinfo="percent+label", pull=0.05)
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        # Quantitative : histogramme + courbe normale
+                        data = df_seg[var_choisie].dropna()
+                        if len(data) > 0:
+                            mu, sigma = data.mean(), data.std()
+                            x = np.linspace(data.min(), data.max(), 100)
+                            y = norm.pdf(x, mu, sigma)
 
-            # Bivariée : Clinique vs Evolution
-            if i == 1 and not df_nettoye.empty and "Evolution" in df_nettoye.columns:
-                st.subheader(f"Analyse bivariée : {var_choisie} vs Evolution")
-                if var_choisie in df_nettoye.columns:
-                    if df_nettoye[var_choisie].dtype == 'object' or df_nettoye[var_choisie].nunique() < 10:
-                        pivot = pd.crosstab(df_nettoye[var_choisie], df_nettoye["Evolution"])
-                        fig_bi = px.bar(pivot, barmode="group", title=f"{var_choisie} vs Evolution")
-                        st.plotly_chart(fig_bi, use_container_width=True)
+                            fig = go.Figure()
+                            fig.add_trace(go.Histogram(x=data, nbinsx=20, name="Histogramme", histnorm="probability density"))
+                            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Courbe normale', line=dict(color='red')))
+                            fig.update_layout(title=f"Distribution de {var_choisie} avec courbe normale",
+                                              xaxis_title=var_choisie, yaxis_title="Densité")
+                            st.plotly_chart(fig, use_container_width=True)
+
+                # Bivariée : Clinique vs Evolution
+                if i == 1 and not df_nettoye.empty and "Evolution" in df_nettoye.columns:
+                    st.subheader(f"Analyse bivariée : {var_choisie} vs Evolution")
+                    if var_choisie in df_nettoye.columns:
+                        if df_nettoye[var_choisie].dtype == 'object' or df_nettoye[var_choisie].nunique() < 10:
+                            pivot = pd.crosstab(df_nettoye[var_choisie], df_nettoye["Evolution"])
+                            fig_bi = px.bar(pivot, barmode="group", title=f"{var_choisie} vs Evolution")
+                            st.plotly_chart(fig_bi, use_container_width=True)
 
     # ============================
     # Onglet Temporel
@@ -148,4 +162,25 @@ def show_eda():
                                      title="Consultations par Niveau d'Urgence")
                 st.plotly_chart(fig_urgence, use_container_width=True)
 
+    # ============================
+    # Onglet Biomarqueurs
+    # ============================
+    with onglets[3]:
+        st.header("Biomarqueurs - statistiques descriptives") 
 
+        bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
+                    "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
+        
+        bio_data = {}
+        for col in bio_cols:
+            if col in df_seg.columns:
+                df_seg[col] = pd.to_numeric(df_seg[col], errors="coerce")
+                bio_data[col] = {
+                    "Moyenne": df_seg[col].mean(),
+                    "Médiane": df_seg[col].median(),
+                    "Min": df_seg[col].min(),
+                    "Max": df_seg[col].max()
+                }
+        
+        if bio_data:
+            st.table(pd.DataFrame(bio_data).T.round(2))
