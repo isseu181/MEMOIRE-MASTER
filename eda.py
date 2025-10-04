@@ -30,7 +30,7 @@ def convertir_df_oui_non(df, exclude_columns=None):
 # Page Streamlit
 # ============================
 def show_eda():
-    st.title("📊 Analyse exploratoire des données")
+    st.title("Analyse exploratoire des données")
 
     # ============================
     # Charger les fichiers
@@ -159,4 +159,5 @@ def show_eda():
                 }
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
+
 
