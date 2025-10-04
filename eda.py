@@ -144,7 +144,6 @@ def show_eda():
     # Onglet Temporel
     # ============================
     with onglets[2]:
-        st.header("Analyse temporelle")
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
@@ -206,3 +205,4 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
+
