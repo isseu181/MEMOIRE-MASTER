@@ -92,8 +92,8 @@ def show_eda():
             variables = onglet_dict[i]
             variables = [v for v in variables if v in df_seg.columns]
 
-            # Onglet Biomarqueurs n'a pas de selectbox
-            if i != 3:
+            # Onglets avec selectbox : uniquement Démographique et Clinique
+            if i in [0, 1]:
                 var_choisie = st.selectbox("Choisissez une variable à afficher", variables)
 
                 if var_choisie:
@@ -149,9 +149,7 @@ def show_eda():
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
         if not df_nettoye.empty:
-            # --------------------
             # Courbe Date d'inclusion (aucune distribution)
-            # --------------------
             if "Date d'inclusion" in df_nettoye.columns:
                 df_nettoye["Date d'inclusion"] = pd.to_datetime(df_nettoye["Date d'inclusion"], errors='coerce')
                 df_date = df_nettoye.dropna(subset=["Date d'inclusion"])
@@ -161,9 +159,7 @@ def show_eda():
                                        title="Nombre d'inclusions par date")
                     st.plotly_chart(fig_date, use_container_width=True)
 
-            # --------------------
             # Diagnostics par mois
-            # --------------------
             if "Mois" in df_nettoye.columns and "Diagnostic Catégorisé" in df_nettoye.columns:
                 df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
                 diag_mois = df_nettoye.groupby(["Mois", "Diagnostic Catégorisé"]).size().reset_index(name="Nombre")
@@ -172,9 +168,7 @@ def show_eda():
                                    markers=True, title="Diagnostics par mois")
                 st.plotly_chart(fig_diag, use_container_width=True)
 
-            # --------------------
             # Consultations par mois
-            # --------------------
             if "Mois" in df_nettoye.columns:
                 df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
                 mois_counts = df_nettoye.groupby("Mois").size().reset_index(name="Nombre")
@@ -182,9 +176,7 @@ def show_eda():
                                    title="Consultations totales par mois")
                 st.plotly_chart(fig_mois, use_container_width=True)
 
-            # --------------------
             # Consultations par NiveauUrgence
-            # --------------------
             if "NiveauUrgence" in df_nettoye.columns:
                 urgence_counts = df_nettoye["NiveauUrgence"].value_counts().reset_index()
                 urgence_counts.columns = ["NiveauUrgence", "Nombre"]
@@ -214,5 +206,3 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
-
-
