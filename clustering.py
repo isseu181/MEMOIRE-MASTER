@@ -15,9 +15,8 @@ def show_clustering():
     st.title("Segmentation de Patients - KMeans Clustering")
 
     # ================================
-    # 1. Chargement automatique de la base
+    # 1. Chargement  de la base
     # ================================
-    st.info("Chargement automatique de la base de données : segmentation.xlsx")
     df = pd.read_excel("segmentation.xlsx")
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
@@ -181,6 +180,7 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
+
 
 
 
