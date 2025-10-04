@@ -24,8 +24,7 @@ def show_classification():
     # 1️⃣ Chargement des données
     # -------------------------------
     df = pd.read_excel("fichier_nettoye.xlsx")
-    st.markdown("### Aperçu des données")
-    st.dataframe(df.head(), use_container_width=True)
+
 
     # -------------------------------
     # 2️⃣ Préparation des données
@@ -218,4 +217,5 @@ def show_classification():
             st.plotly_chart(fig_imp)
         else:
             st.info("Pas de variable importance disponible pour ce modèle.")
+
 
