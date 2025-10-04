@@ -73,7 +73,7 @@ def show_eda():
     cliniques = ["Type de drépanocytose","Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C",
                  "Nbre de GB (/mm3)","% d'HB A2","Nbre de PLT (/mm3)","GsRh",
                  "Âge de début des signes (en mois)","Âge de découverte de la drépanocytose (en mois)",
-                 "Circonstances Courants","Autres (nommer)","Âge début de suivi du traitement (en mois)",
+                 ,"Âge début de suivi du traitement (en mois)","Diagnostic Catégorisé",
                  "L'hydroxyurée","Echange transfusionnelle","Prophylaxie à la pénicilline",
                  "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
                  "HDJ","CVO","Anémie","AVC","STA","Priapisme","Infections",
@@ -99,7 +99,7 @@ def show_eda():
                 if var_choisie:
                     # Qualitative
                     if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
-                        # Si c'est une variable binaire 0/1, convertir pour l'affichage
+                        # Si variable binaire 0/1, convertir pour l'affichage
                         if set(df_seg[var_choisie].dropna().unique()) <= {0, 1}:
                             counts = df_seg[var_choisie].map({1: "Oui", 0: "Non"}).value_counts()
                         else:
@@ -112,9 +112,7 @@ def show_eda():
                     else:
                         # Quantitative : histogramme + courbe normale
                         data = pd.to_numeric(df_seg[var_choisie], errors='coerce').dropna()
-                        if len(data) == 0:
-                            st.warning(f"{var_choisie} n'est pas numérique ou contient uniquement des valeurs manquantes.")
-                        else:
+                        if len(data) > 0:
                             mu, sigma = data.mean(), data.std()
                             fig = go.Figure()
                             fig.add_trace(go.Histogram(x=data, nbinsx=20, name="Histogramme", histnorm="probability density"))
@@ -146,13 +144,13 @@ def show_eda():
     # Onglet Temporel
     # ============================
     with onglets[2]:
-        st.header("3️⃣ Analyse temporelle")
+        st.header(" Analyse temporelle")
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
         if not df_nettoye.empty:
             # --------------------
-            # Courbe Date d'inclusion
+            # Courbe Date d'inclusion (pas de distribution)
             # --------------------
             if "Date d'inclusion" in df_nettoye.columns:
                 df_nettoye["Date d'inclusion"] = pd.to_datetime(df_nettoye["Date d'inclusion"], errors='coerce')
