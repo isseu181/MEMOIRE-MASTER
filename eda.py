@@ -21,7 +21,13 @@ def oui_non_vers_binaire(valeur):
 
 def convertir_df_oui_non(df, exclude_columns=None):
     df = df.copy()
-    exclude_columns = exclude_columns or []
+    # Exclure par défaut "Niveau d'instruction scolarité"
+    default_exclude = ["Niveau d'instruction scolarité"]
+    if exclude_columns:
+        exclude_columns = list(set(exclude_columns + default_exclude))
+    else:
+        exclude_columns = default_exclude
+
     for col in df.columns:
         if col not in exclude_columns and df[col].isin(
             ["Oui", "Non", "OUI", "NON", "oui", "non", "O", "N"]
@@ -48,7 +54,7 @@ def show_eda():
         df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
     except:
         st.warning("Impossible de charger fichier_nettoye.xlsx")
-        df_nettoye = pd.DataFrame()  # DataFrame vide pour éviter les erreurs
+        df_nettoye = pd.DataFrame()
 
     # Conversion Oui/Non en binaire
     df_seg = convertir_df_oui_non(df_seg)
@@ -73,14 +79,10 @@ def show_eda():
                  "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
                  "HDJ","CVO","Anémie","AVC","STA","Priapisme","Infections",
                  "Nbre de transfusion avant 2017","Nbre de transfusion Entre 2017 et 2023","Ictère"]
+    temporelles = ["Date d'inclusion"]
     biomarqueurs = ["Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C","Nbre de GB (/mm3)","Nbre de PLT (/mm3)"]
 
-    onglet_dict = {
-        0: demographiques,
-        1: cliniques,
-        2: temporelles,
-        3: biomarqueurs
-    }
+    onglet_dict = {0: demographiques, 1: cliniques, 2: temporelles, 3: biomarqueurs}
 
     # ============================
     # Boucle sur les onglets
@@ -91,12 +93,12 @@ def show_eda():
             variables = onglet_dict[i]
             variables = [v for v in variables if v in df_seg.columns]
 
-            # Choix variable
-            if i != 3:  # Onglet Biomarqueurs n'a pas besoin de selectbox
+            # Onglet Biomarqueurs n'a pas de selectbox
+            if i != 3:
                 var_choisie = st.selectbox("Choisissez une variable à afficher", variables)
 
                 if var_choisie:
-                    # Univariée : Qualitative
+                    # Qualitative
                     if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
                         counts = df_seg[var_choisie].value_counts()
                         fig = px.pie(counts, names=counts.index, values=counts.values,
@@ -105,23 +107,23 @@ def show_eda():
                         st.plotly_chart(fig, use_container_width=True)
                     else:
                         # Quantitative : histogramme + courbe normale
-                        data = df_seg[var_choisie].dropna()
-                        if len(data) > 0:
+                        data = pd.to_numeric(df_seg[var_choisie], errors='coerce').dropna()
+                        if len(data) == 0:
+                            st.warning(f"{var_choisie} n'est pas numérique ou contient uniquement des valeurs manquantes.")
+                        else:
                             mu, sigma = data.mean(), data.std()
-                            x = np.linspace(data.min(), data.max(), 100)
-                            y = norm.pdf(x, mu, sigma)
-
                             fig = go.Figure()
                             fig.add_trace(go.Histogram(x=data, nbinsx=20, name="Histogramme", histnorm="probability density"))
-                            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Courbe normale', line=dict(color='red')))
+                            if sigma > 0:
+                                x = np.linspace(data.min(), data.max(), 100)
+                                y = norm.pdf(x, mu, sigma)
+                                fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Courbe normale', line=dict(color='red')))
                             fig.update_layout(title=f"Distribution de {var_choisie} avec courbe normale",
                                               xaxis_title=var_choisie, yaxis_title="Densité")
                             st.plotly_chart(fig, use_container_width=True)
 
-                # Bivariée : Clinique vs Evolution
-                if i == 1 and not df_nettoye.empty and "Evolution" in df_nettoye.columns:
-                    st.subheader(f"Analyse bivariée : {var_choisie} vs Evolution")
-                    if var_choisie in df_nettoye.columns:
+                    # Bivariée : Clinique vs Evolution
+                    if i == 1 and not df_nettoye.empty and "Evolution" in df_nettoye.columns:
                         if df_nettoye[var_choisie].dtype == 'object' or df_nettoye[var_choisie].nunique() < 10:
                             pivot = pd.crosstab(df_nettoye[var_choisie], df_nettoye["Evolution"])
                             fig_bi = px.bar(pivot, barmode="group", title=f"{var_choisie} vs Evolution")
@@ -183,5 +185,3 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
-
-
