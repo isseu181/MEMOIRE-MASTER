@@ -36,14 +36,10 @@ def show_eda():
     # Charger les fichiers
     # ============================
     try:
-        df_nettoye = pd.read_excel("fichier_nettoye.xlsx")
-    except:
-        df_nettoye = pd.DataFrame()
-
-    try:
         df_seg = pd.read_excel("segmentation.xlsx")
     except:
-        df_seg = pd.DataFrame()
+        st.error("Impossible de charger segmentation.xlsx")
+        return
 
     # ============================
     # Onglets horizontaux
@@ -51,113 +47,49 @@ def show_eda():
     onglets = st.tabs(["Démographique", "Clinique", "Temporel", "Biomarqueurs"])
 
     # ============================
-    # Onglet Démographique
+    # Classification des variables par onglet
     # ============================
-    with onglets[0]:
-        st.header("1️⃣ Données démographiques")
+    demographiques = ["Sexe","Origine Géographique","Statut des parents (Vivants/Décédés)",
+                      "Parents Salariés","Prise en charge","Scolarité","Niveau d'instruction scolarité"]
+    cliniques = ["Type de drépanocytose","Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C",
+                 "Nbre de GB (/mm3)","% d'HB A2","Nbre de PLT (/mm3)","GsRh",
+                 "Âge de début des signes (en mois)","Âge de découverte de la drépanocytose (en mois)",
+                "Âge début de suivi du traitement (en mois)",
+                 "L'hydroxyurée","Echange transfusionnelle","Prophylaxie à la pénicilline",
+                 "Nbre d'hospitalisations avant 2017","Nbre d'hospitalisations entre 2017 et 2023",
+                 "HDJ","CVO","Anémie","AVC","STA","Priapisme","Infections",
+                 "Nbre de transfusion avant 2017","Nbre de transfusion Entre 2017 et 2023","Ictère"]
+    temporelles = ["Date d'inclusion"]
+    biomarqueurs = ["Taux d'Hb (g/dL)","% d'Hb F","% d'Hb S","% d'HB C","Nbre de GB (/mm3)","Nbre de PLT (/mm3)"]
 
-        # Sexe
-        if "Sexe" in df_seg.columns:
-            sexe_counts = df_seg["Sexe"].value_counts()
-            fig = px.pie(sexe_counts, names=sexe_counts.index, values=sexe_counts.values,
-                         title="Répartition par sexe", color_discrete_sequence=px.colors.sequential.RdBu)
-            fig.update_traces(textinfo="percent+label", pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Origine géographique
-        if "Origine Géographique" in df_seg.columns:
-            origine_counts = df_seg["Origine Géographique"].value_counts()
-            fig = px.pie(origine_counts, names=origine_counts.index, values=origine_counts.values,
-                         title="Répartition par origine géographique", color_discrete_sequence=px.colors.sequential.Viridis)
-            fig.update_traces(textinfo="percent+label", pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Scolarité
-        if "Niveau d'instruction scolarité" in df_seg.columns:
-            scolar_counts = df_seg["Niveau d'instruction scolarité"].value_counts()
-            fig = px.pie(scolar_counts, names=scolar_counts.index, values=scolar_counts.values,
-                         title="Répartition de la scolarisation", color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig.update_traces(textinfo="percent+label", pull=0.05)
-            st.plotly_chart(fig, use_container_width=True)
+    onglet_dict = {
+        0: demographiques,
+        1: cliniques,
+        2: temporelles,
+        3: biomarqueurs
+    }
 
     # ============================
-    # Onglet Clinique
+    # Boucle sur les onglets
     # ============================
-    with onglets[1]:
-        st.header("2️⃣ Données cliniques")
+    for i, onglet in enumerate(onglets):
+        with onglet:
+            st.header(f"Variables : {['Démographique','Clinique','Temporel','Biomarqueurs'][i]}")
+            variables = onglet_dict[i]
+            variables = [v for v in variables if v in df_seg.columns]
 
-        # Type de drépanocytose
-        if "Type de drépanocytose" in df_seg.columns:
-            type_counts = df_seg["Type de drépanocytose"].value_counts()
-            fig = px.pie(type_counts, names=type_counts.index, values=type_counts.values,
-                         title="Répartition des types de drépanocytose")
-            st.plotly_chart(fig, use_container_width=True)
+            # Choix variable
+            var_choisie = st.selectbox("Choisissez une variable à afficher", variables)
 
-        # Analyse bivariée qualitatives vs Evolution
-        cible = "Evolution"
-        qualitative_vars = ["Sexe", "Origine Géographique", "Diagnostic Catégorisé"]
-        for var in qualitative_vars:
-            if var in df_nettoye.columns and cible in df_nettoye.columns:
-                st.subheader(f"{var} vs {cible}")
-                cross_tab = pd.crosstab(df_nettoye[var], df_nettoye[cible], normalize="index")*100
-                fig = px.bar(cross_tab, barmode="group", text_auto=".2f",
-                             title=f"{var} vs {cible}")
-                st.plotly_chart(fig, use_container_width=True)
-
-    # ============================
-    # Onglet Temporel
-    # ============================
-    with onglets[2]:
-        st.header("3️⃣ Analyse temporelle")
-        mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
-                      "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
-
-        # Diagnostics par mois
-        if "Mois" in df_nettoye.columns and "Diagnostic Catégorisé" in df_nettoye.columns:
-            diag_mois = df_nettoye.groupby(["Mois","Diagnostic Catégorisé"]).size().reset_index(name="Nombre")
-            diag_mois["Mois"] = pd.Categorical(diag_mois["Mois"], categories=mois_ordre, ordered=True)
-            diag_mois = diag_mois.sort_values("Mois")
-            fig_diag = px.line(diag_mois, x="Mois", y="Nombre", color="Diagnostic Catégorisé",
-                               markers=True, title="Diagnostics par mois")
-            st.plotly_chart(fig_diag, use_container_width=True)
-
-        # Consultations par mois
-        if "Mois" in df_nettoye.columns:
-            df_nettoye["Mois"] = pd.Categorical(df_nettoye["Mois"], categories=mois_ordre, ordered=True)
-            mois_counts = df_nettoye.groupby("Mois").size().reset_index(name="Nombre")
-            fig_mois = px.line(mois_counts, x="Mois", y="Nombre", markers=True,
-                               title="Consultations totales par mois")
-            st.plotly_chart(fig_mois, use_container_width=True)
-
-        # Consultations par urgence
-        urgences = [f"Urgence{i}" for i in range(1,7)]
-        consultations_par_urgence = {urg: df_nettoye[urg].notna().sum() 
-                                     for urg in urgences if urg in df_nettoye.columns}
-        if consultations_par_urgence:
-            fig_urg = px.bar(x=list(consultations_par_urgence.keys()),
-                             y=list(consultations_par_urgence.values()),
-                             text=list(consultations_par_urgence.values()),
-                             title="Nombre de consultations par Urgence")
-            st.plotly_chart(fig_urg, use_container_width=True)
-
-    # ============================
-    # Onglet Biomarqueurs
-    # ============================
-    with onglets[3]:
-        st.header("4️⃣ Biomarqueurs - statistiques descriptives")
-        bio_cols = ["Taux d'Hb (g/dL)", "% d'Hb F", "% d'Hb S", "% d'HB C",
-                    "Nbre de GB (/mm3)", "Nbre de PLT (/mm3)"]
-        bio_data = {}
-        for col in bio_cols:
-            if col in df_seg.columns:
-                df_seg[col] = pd.to_numeric(df_seg[col], errors="coerce")
-                bio_data[col] = {
-                    "Moyenne": df_seg[col].mean(),
-                    "Médiane": df_seg[col].median(),
-                    "Min": df_seg[col].min(),
-                    "Max": df_seg[col].max()
-                }
-        if bio_data:
-            st.table(pd.DataFrame(bio_data).T.round(2))
-
-
+            if var_choisie:
+                # Si variable qualitative
+                if df_seg[var_choisie].dtype == 'object' or df_seg[var_choisie].nunique() < 10:
+                    counts = df_seg[var_choisie].value_counts()
+                    fig = px.pie(counts, names=counts.index, values=counts.values,
+                                 title=f"Répartition de {var_choisie}")
+                    fig.update_traces(textinfo="percent+label", pull=0.05)
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    # Variable quantitative
+                    fig = px.histogram(df_seg, x=var_choisie, nbins=20, title=f"Distribution de {var_choisie}")
+                    st.plotly_chart(fig, use_container_width=True)
