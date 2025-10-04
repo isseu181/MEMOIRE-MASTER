@@ -144,13 +144,13 @@ def show_eda():
     # Onglet Temporel
     # ============================
     with onglets[2]:
-        st.header(" Analyse temporelle")
+        st.header("Analyse temporelle")
         mois_ordre = ["Janvier","Février","Mars","Avril","Mai","Juin",
                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
 
         if not df_nettoye.empty:
             # --------------------
-            # Courbe Date d'inclusion (pas de distribution)
+            # Courbe Date d'inclusion (aucune distribution)
             # --------------------
             if "Date d'inclusion" in df_nettoye.columns:
                 df_nettoye["Date d'inclusion"] = pd.to_datetime(df_nettoye["Date d'inclusion"], errors='coerce')
@@ -214,6 +214,3 @@ def show_eda():
         
         if bio_data:
             st.table(pd.DataFrame(bio_data).T.round(2))
-
-
-
