@@ -84,10 +84,10 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
     mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    st.markdown("### 👩‍⚕️ Remplissez le formulaire du patient pour estimer son évolution clinique")
+    st.markdown("###  Remplissez le formulaire du patient pour estimer son évolution clinique")
 
     # --- Dictionnaire des variables ---
-    with st.expander("📘 Voir les définitions des variables"):
+    with st.expander(" Voir les définitions des variables"):
         st.markdown("""
         **Variables biologiques :**
         - **GB (/mm³)** : Taux de globules blancs mesuré **en situation d’urgence**.
@@ -206,10 +206,10 @@ def show_deployment():
             <div class="reco">
                 <h4> Recommandations :</h4>
                 <ul>
-                    <li>Maintenir le suivi médical régulier 📅</li>
+                    <li>Maintenir le suivi médical régulier </li>
                     <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos)</li>
-                    <li>Poursuivre la prophylaxie et les vaccinations 💉</li>
-                    <li>Informer le médecin en cas de changement d’état 🩺</li>
+                    <li>Poursuivre la prophylaxie et les vaccinations </li>
+                    <li>Informer le médecin en cas de changement d’état </li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -217,17 +217,18 @@ def show_deployment():
         else:
             st.markdown(f"""
             <div class="prediction-card-bad">
-                <h3>⚠️ Évolution prévue : <b>Complications possibles</b></h3>
+                <h3> Évolution prévue : <b>Complications possibles</b></h3>
                 <p>Probabilité : <b>{pred_proba:.2f}</b></p>
             </div>
             <div class="reco-bad">
                 <h4> Recommandations :</h4>
                 <ul>
-                    <li>Renforcer le suivi médical rapproché 🏥</li>
-                    <li>Réévaluer la prophylaxie et le traitement 🔍</li>
-                    <li>Contrôler plus fréquemment les paramètres biologiques 🧪</li>
-                    <li>Contacter immédiatement le médecin en cas de fièvre, douleur, ou pâleur accrue 🚨</li>
+                    <li>Renforcer le suivi médical rapproché </li>
+                    <li>Réévaluer la prophylaxie et le traitement </li>
+                    <li>Contrôler plus fréquemment les paramètres biologiques </li>
+                    <li>Contacter immédiatement le médecin en cas de fièvre, douleur, ou pâleur accrue </li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
 
