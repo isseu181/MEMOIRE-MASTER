@@ -1,4 +1,4 @@
-# ================================
+i# ================================
 # deployment.py - Déploiement Random Forest (amélioré)
 # ================================
 import streamlit as st
@@ -107,5 +107,6 @@ def show_deployment():
             - Contrôler les paramètres biologiques plus fréquemment  
             - Contacter rapidement le médecin en cas de fièvre, douleur, ou pâleur accrue  
             """)
+
 
 
