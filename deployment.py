@@ -1,5 +1,5 @@
-# ================================
-# deployment.py - Déploiement Random Forest (amélioré)
+i# ================================
+# deployment.py - Déploiement Random Forest (version stylée)
 # ================================
 import streamlit as st
 import pandas as pd
@@ -7,12 +7,58 @@ import joblib
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
-    st.markdown("<h1 style='text-align:center;color:darkgreen;'>🌿 Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
 
-    # Charger le modèle et le scaler
+    # --- 🌿 Style CSS personnalisé ---
+    st.markdown("""
+        <style>
+        body {
+            background-color: #f5f9f6;
+        }
+        .stApp {
+            background-color: #f5f9f6;
+        }
+        h1 {
+            text-align: center;
+            color: #0b6e4f;
+            font-weight: bold;
+        }
+        .prediction-card {
+            padding: 20px;
+            border-radius: 15px;
+            background-color: #e8f5e9;
+            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .prediction-card-bad {
+            padding: 20px;
+            border-radius: 15px;
+            background-color: #ffebee;
+            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .reco {
+            background-color: #ffffff;
+            border-left: 5px solid #0b6e4f;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        .reco-bad {
+            background-color: #ffffff;
+            border-left: 5px solid #b71c1c;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<h1>🩺 Déploiement du Modèle Random Forest</h1>", unsafe_allow_html=True)
+
+    # Charger modèle et scaler
     try:
-        model = joblib.load("random_forest_model.pkl")  
-        scaler = joblib.load("scaler.pkl")              
+        model = joblib.load("random_forest_model.pkl")
+        scaler = joblib.load("scaler.pkl")
     except:
         st.error("❌ Impossible de charger le modèle ou le scaler.")
         return
@@ -37,12 +83,11 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
     mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    st.markdown("### 🩺 Remplissez le formulaire pour prédire l’évolution clinique du patient")
+    st.markdown("### 👩‍⚕️ Remplissez le formulaire du patient pour estimer son évolution clinique")
 
     with st.form("patient_form"):
         inputs = {}
 
-        # Diviser le formulaire en 2 colonnes pour alléger la présentation
         col1, col2 = st.columns(2)
 
         with col1:
@@ -61,8 +106,7 @@ def show_deployment():
             for var in binary_vars[len(binary_vars)//2:]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-            # Variables ordinales et catégorielles
-            st.markdown("####  Variables ordinales et catégorielles")
+            st.markdown("#### 🧩 Autres variables")
             inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
@@ -88,26 +132,37 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        st.subheader("🧾 Résultat de la prédiction")
+        # --- 🎯 Résultats et recommandations ---
         if pred_class == 0:
-            st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
-            st.markdown("""
-            ### 💡 Recommandations :
-            - Poursuivre le suivi médical régulier 📅  
-            - Maintenir une bonne hygiène de vie (alimentation, hydratation)  
-            - Continuer les vaccinations et prophylaxies recommandées 💉  
-            - Signaler tout changement clinique au médecin traitant 🩺
-            """)
+            st.markdown(f"""
+            <div class="prediction-card">
+                <h3>✅ Évolution prévue : <b>Favorable</b></h3>
+                <p>Probabilité de complication : <b>{pred_proba:.2f}</b></p>
+            </div>
+            <div class="reco">
+                <h4>💡 Recommandations :</h4>
+                <ul>
+                    <li>Maintenir le suivi médical régulier 📅</li>
+                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos) 🌿</li>
+                    <li>Poursuivre la prophylaxie et les vaccinations 💉</li>
+                    <li>Informer le médecin en cas de changement d’état 🩺</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
+
         else:
-            st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
-            st.markdown("""
-            ### ⚕️ Recommandations :
-            - Renforcer le suivi médical rapproché 🏥  
-            - Réévaluer la prophylaxie et le traitement en cours  
-            - Contrôler les paramètres biologiques plus fréquemment  
-            - Contacter rapidement le médecin en cas de fièvre, douleur, ou pâleur accrue  
-            """)
-
-
-
-
+            st.markdown(f"""
+            <div class="prediction-card-bad">
+                <h3>⚠️ Évolution prévue : <b>Complications possibles</b></h3>
+                <p>Probabilité : <b>{pred_proba:.2f}</b></p>
+            </div>
+            <div class="reco-bad">
+                <h4>⚕️ Recommandations :</h4>
+                <ul>
+                    <li>Renforcer le suivi médical rapproché 🏥</li>
+                    <li>Réévaluer la prophylaxie et le traitement 🔍</li>
+                    <li>Contrôler plus fréquemment les paramètres biologiques 🧪</li>
+                    <li>Contacter immédiatement le médecin en cas de fièvre, douleur, ou pâleur accrue 🚨</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
