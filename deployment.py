@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest (version stylée)
+# deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
 import pandas as pd
@@ -8,7 +8,7 @@ import joblib
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
 
-    # --- 🌿 Style CSS personnalisé ---
+    # ---  Style CSS  ---
     st.markdown("""
         <style>
         body {
@@ -60,7 +60,7 @@ def show_deployment():
         model = joblib.load("random_forest_model.pkl")
         scaler = joblib.load("scaler.pkl")
     except:
-        st.error("❌ Impossible de charger le modèle ou le scaler.")
+        st.error("Impossible de charger le modèle ou le scaler.")
         return
 
     quantitative_vars = [
@@ -91,11 +91,9 @@ def show_deployment():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("#### ⚙️ Variables quantitatives")
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
-            st.markdown("#### 🧬 Variables binaires")
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
@@ -106,7 +104,6 @@ def show_deployment():
             for var in binary_vars[len(binary_vars)//2:]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-            st.markdown("#### 🧩 Autres variables")
             inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
@@ -132,7 +129,7 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        # --- 🎯 Résultats et recommandations ---
+        # --- Résultats et recommandations ---
         if pred_class == 0:
             st.markdown(f"""
             <div class="prediction-card">
@@ -140,10 +137,10 @@ def show_deployment():
                 <p>Probabilité de complication : <b>{pred_proba:.2f}</b></p>
             </div>
             <div class="reco">
-                <h4>💡 Recommandations :</h4>
+                <h4> Recommandations :</h4>
                 <ul>
                     <li>Maintenir le suivi médical régulier 📅</li>
-                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos) 🌿</li>
+                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos) </li>
                     <li>Poursuivre la prophylaxie et les vaccinations 💉</li>
                     <li>Informer le médecin en cas de changement d’état 🩺</li>
                 </ul>
@@ -157,7 +154,7 @@ def show_deployment():
                 <p>Probabilité : <b>{pred_proba:.2f}</b></p>
             </div>
             <div class="reco-bad">
-                <h4>⚕️ Recommandations :</h4>
+                <h4> Recommandations :</h4>
                 <ul>
                     <li>Renforcer le suivi médical rapproché 🏥</li>
                     <li>Réévaluer la prophylaxie et le traitement 🔍</li>
@@ -166,4 +163,5 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
 
