@@ -1,4 +1,4 @@
-# ================================
+i# ================================
 # deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
@@ -63,6 +63,7 @@ def show_deployment():
         st.error("Impossible de charger le modèle ou le scaler.")
         return
 
+    # --- Variables ---
     quantitative_vars = [
         'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
         'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
@@ -85,36 +86,82 @@ def show_deployment():
 
     st.markdown("### 👩‍⚕️ Remplissez le formulaire du patient pour estimer son évolution clinique")
 
+    # --- FORMULAIRE ---
     with st.form("patient_form"):
         inputs = {}
-
         col1, col2 = st.columns(2)
 
+        # --- Colonne 1 ---
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+                help_text = None
+                if var == "GB (/mm3)":
+                    help_text = "Taux de globules blancs mesuré en situation d’urgence."
+                elif var == "PLT (/mm3)":
+                    help_text = "Taux de plaquettes mesuré en urgence."
+                elif var == "Nbre de GB (/mm3)":
+                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
+                elif var == "Nbre de PLT (/mm3)":
+                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
+
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
 
             for var in binary_vars[:len(binary_vars)//2]:
-                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
+                inputs[var] = st.selectbox(
+                    f"{var} (OUI=1, NON=0)", 
+                    options=[0,1],
+                    help=f"Indique la présence ({var}) observée : 1=Oui, 0=Non."
+                )
 
+        # --- Colonne 2 ---
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+                help_text = None
+                if var == "GB (/mm3)":
+                    help_text = "Taux de globules blancs mesuré en situation d’urgence."
+                elif var == "PLT (/mm3)":
+                    help_text = "Taux de plaquettes mesuré en urgence."
+                elif var == "Nbre de GB (/mm3)":
+                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
+                elif var == "Nbre de PLT (/mm3)":
+                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
+
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
 
             for var in binary_vars[len(binary_vars)//2:]:
-                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
+                inputs[var] = st.selectbox(
+                    f"{var} (OUI=1, NON=0)", 
+                    options=[0,1],
+                    help=f"Indique la présence ({var}) observée : 1=Oui, 0=Non."
+                )
 
-            inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
+            inputs['NiveauUrgence'] = st.slider(
+                "Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 
+                1, 6, 1,
+                help="Échelle d’évaluation de la gravité clinique (1 = la plus élevée, 6 = la plus faible)."
+            )
+
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
                 options=[0,1,2,3,4],
-                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x]
+                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x],
+                help="Niveau de scolarisation du patient."
             )
-            inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-            inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
+
+            inputs["Diagnostic Catégorisé"] = st.selectbox(
+                "Diagnostic Catégorisé", 
+                options=diagnostic_categories,
+                help="Type de diagnostic principal observé."
+            )
+            inputs["Mois"] = st.selectbox(
+                "Mois", 
+                options=mois_categories,
+                help="Mois de référence de la consultation."
+            )
 
         submitted = st.form_submit_button("🔮 Prédire")
 
+    # --- PREDICTION ---
     if submitted:
         input_df = pd.DataFrame([inputs])
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
@@ -140,7 +187,7 @@ def show_deployment():
                 <h4> Recommandations :</h4>
                 <ul>
                     <li>Maintenir le suivi médical régulier 📅</li>
-                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos) </li>
+                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos)</li>
                     <li>Poursuivre la prophylaxie et les vaccinations 💉</li>
                     <li>Informer le médecin en cas de changement d’état 🩺</li>
                 </ul>
@@ -163,5 +210,3 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-
-
