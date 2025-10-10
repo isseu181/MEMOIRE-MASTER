@@ -97,6 +97,10 @@ def show_deployment():
         - **HB (g/dl)** : Taux d’hémoglobine mesuré.
         - **CRP Si positive (Valeur)** : Valeur de la protéine C-réactive lorsqu’elle est positive.
         - **% d’Hb S / % d’Hb F** : Répartition des fractions d’hémoglobine.
+        - **GR (/mm3)** : Nombre de globules rouges.
+        - **VGM (fl/u3)** : Volume globulaire moyen.
+        - **TCMH (g/dl)** : Teneur corpusculaire moyenne en hémoglobine.
+        
 
         **Variables cliniques :**
         - **Pâleur**, **Splénomégalie**, **Souffle systolique fonctionnel** : Observations cliniques binaires (1 = Oui, 0 = Non).
@@ -230,5 +234,6 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
 
 
