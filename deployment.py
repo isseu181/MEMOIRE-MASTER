@@ -1,4 +1,4 @@
-i# ================================
+# ================================
 # deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
@@ -230,3 +230,4 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
