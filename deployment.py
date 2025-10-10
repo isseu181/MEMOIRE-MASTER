@@ -1,4 +1,4 @@
-# ================================
+i# ================================
 # deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
@@ -86,6 +86,28 @@ def show_deployment():
 
     st.markdown("### 👩‍⚕️ Remplissez le formulaire du patient pour estimer son évolution clinique")
 
+    # --- Dictionnaire des variables ---
+    with st.expander("📘 Voir les définitions des variables"):
+        st.markdown("""
+        **Variables biologiques :**
+        - **GB (/mm³)** : Taux de globules blancs mesuré **en situation d’urgence**.
+        - **PLT (/mm³)** : Taux de plaquettes mesuré **en urgence**.
+        - **Nbre de GB (/mm³)** : Valeur du nombre de globules blancs lors du **suivi régulier**.
+        - **Nbre de PLT (/mm³)** : Valeur du nombre de plaquettes lors du **suivi régulier**.
+        - **HB (g/dl)** : Taux d’hémoglobine mesuré.
+        - **CRP Si positive (Valeur)** : Valeur de la protéine C-réactive lorsqu’elle est positive.
+        - **% d’Hb S / % d’Hb F** : Répartition des fractions d’hémoglobine.
+
+        **Variables cliniques :**
+        - **Pâleur**, **Splénomégalie**, **Souffle systolique fonctionnel** : Observations cliniques binaires (1 = Oui, 0 = Non).
+        - **Niveau d’urgence** : Cotation de 1 à 6 indiquant la gravité clinique.
+        - **Niveau d’instruction scolarité** : Niveau de scolarisation du patient.
+
+        **Autres :**
+        - **Diagnostic catégorisé** : Type principal de diagnostic.
+        - **Mois** : Mois de la consultation ou du suivi.
+        """)
+
     # --- FORMULAIRE ---
     with st.form("patient_form"):
         inputs = {}
@@ -96,21 +118,20 @@ def show_deployment():
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 help_text = None
                 if var == "GB (/mm3)":
-                    help_text = "Taux de globules blancs mesuré en situation d’urgence."
+                    help_text = "Taux de globules blancs mesuré en urgence."
                 elif var == "PLT (/mm3)":
                     help_text = "Taux de plaquettes mesuré en urgence."
                 elif var == "Nbre de GB (/mm3)":
                     help_text = "Valeur du nombre de globules blancs en suivi régulier."
                 elif var == "Nbre de PLT (/mm3)":
                     help_text = "Valeur du nombre de plaquettes en suivi régulier."
-
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
 
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(
                     f"{var} (OUI=1, NON=0)", 
                     options=[0,1],
-                    help=f"Indique la présence ({var}) observée : 1=Oui, 0=Non."
+                    help=f"Indique la présence ou non de {var.lower()}."
                 )
 
         # --- Colonne 2 ---
@@ -118,27 +139,26 @@ def show_deployment():
             for var in quantitative_vars[len(quantitative_vars)//2:]:
                 help_text = None
                 if var == "GB (/mm3)":
-                    help_text = "Taux de globules blancs mesuré en situation d’urgence."
+                    help_text = "Taux de globules blancs mesuré en urgence."
                 elif var == "PLT (/mm3)":
                     help_text = "Taux de plaquettes mesuré en urgence."
                 elif var == "Nbre de GB (/mm3)":
                     help_text = "Valeur du nombre de globules blancs en suivi régulier."
                 elif var == "Nbre de PLT (/mm3)":
                     help_text = "Valeur du nombre de plaquettes en suivi régulier."
-
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
 
             for var in binary_vars[len(binary_vars)//2:]:
                 inputs[var] = st.selectbox(
                     f"{var} (OUI=1, NON=0)", 
                     options=[0,1],
-                    help=f"Indique la présence ({var}) observée : 1=Oui, 0=Non."
+                    help=f"Indique la présence ou non de {var.lower()}."
                 )
 
             inputs['NiveauUrgence'] = st.slider(
                 "Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 
                 1, 6, 1,
-                help="Échelle d’évaluation de la gravité clinique (1 = la plus élevée, 6 = la plus faible)."
+                help="Échelle d’évaluation de la gravité clinique (1 = plus urgente, 6 = moins urgente)."
             )
 
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
@@ -210,6 +230,3 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-
-
-
