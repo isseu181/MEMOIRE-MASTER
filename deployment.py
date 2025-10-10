@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest (compact)
+# deployment.py - Déploiement Random Forest (amélioré)
 # ================================
 import streamlit as st
 import pandas as pd
@@ -7,14 +7,14 @@ import joblib
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
-    st.markdown("<h1 style='text-align:center;color:darkgreen;'> Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;color:darkgreen;'>🌿 Déploiement - Modèle Random Forest</h1>", unsafe_allow_html=True)
 
     # Charger le modèle et le scaler
     try:
         model = joblib.load("random_forest_model.pkl")  
         scaler = joblib.load("scaler.pkl")              
     except:
-        st.error(" Impossible de charger le modèle ou le scaler.")
+        st.error("❌ Impossible de charger le modèle ou le scaler.")
         return
 
     quantitative_vars = [
@@ -37,31 +37,40 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
     mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    st.markdown("### Remplissez le formulaire pour prédire l’évolution clinique d’un patient")
+    st.markdown("### 🩺 Remplissez le formulaire pour prédire l’évolution clinique du patient")
 
     with st.form("patient_form"):
         inputs = {}
 
-        # Quantitatives
-        for var in quantitative_vars:
-            inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+        # Diviser le formulaire en 2 colonnes pour alléger la présentation
+        col1, col2 = st.columns(2)
 
-        # Qualitatives binaires + ordinales + catégorielles
-        # Binaires
-        for var in binary_vars:
-            inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
+        with col1:
+            st.markdown("#### ⚙️ Variables quantitatives")
+            for var in quantitative_vars[:len(quantitative_vars)//2]:
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
-        # Ordinales
-        inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
-        inputs["Niveau d'instruction scolarité"] = st.selectbox(
-            "Niveau d'instruction scolarité",
-            options=[0,1,2,3,4],
-            format_func=lambda x: ["Non","Maternelle","Elémentaire","Secondaire","Supérieur"][x]
-        )
+            st.markdown("#### 🧬 Variables binaires")
+            for var in binary_vars[:len(binary_vars)//2]:
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-        # Catégorielles
-        inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-        inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
+        with col2:
+            for var in quantitative_vars[len(quantitative_vars)//2:]:
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+
+            for var in binary_vars[len(binary_vars)//2:]:
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
+
+            # Variables ordinales et catégorielles
+            st.markdown("####  Variables ordinales et catégorielles")
+            inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
+            inputs["Niveau d'instruction scolarité"] = st.selectbox(
+                "Niveau d'instruction scolarité",
+                options=[0,1,2,3,4],
+                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x]
+            )
+            inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
+            inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
 
         submitted = st.form_submit_button("🔮 Prédire")
 
@@ -79,10 +88,24 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        st.subheader(" Résultat de la prédiction")
+        st.subheader("🧾 Résultat de la prédiction")
         if pred_class == 0:
             st.success(f"✅ Évolution prévue : **Favorable** (Probabilité de complication : {pred_proba:.2f})")
+            st.markdown("""
+            ### 💡 Recommandations :
+            - Poursuivre le suivi médical régulier 📅  
+            - Maintenir une bonne hygiène de vie (alimentation, hydratation)  
+            - Continuer les vaccinations et prophylaxies recommandées 💉  
+            - Signaler tout changement clinique au médecin traitant 🩺
+            """)
         else:
             st.error(f"⚠️ Évolution prévue : **Complications attendues** (Probabilité : {pred_proba:.2f})")
+            st.markdown("""
+            ### ⚕️ Recommandations :
+            - Renforcer le suivi médical rapproché 🏥  
+            - Réévaluer la prophylaxie et le traitement en cours  
+            - Contrôler les paramètres biologiques plus fréquemment  
+            - Contacter rapidement le médecin en cas de fièvre, douleur, ou pâleur accrue  
+            """)
 
 
