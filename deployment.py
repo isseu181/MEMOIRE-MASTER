@@ -1,4 +1,4 @@
-# ================================
+i# ================================
 # deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
@@ -90,8 +90,8 @@ def show_deployment():
     with st.expander(" Voir les définitions des variables"):
         st.markdown("""
         **Variables biologiques :**
-        - **GB (/mm³)** : Taux de globules blancs mesuré **en situation d’urgence**.
-        - **PLT (/mm³)** : Taux de plaquettes mesuré **en urgence**.
+        - **GB (/mm³)** : Valeur du nombre de globules blancs mesuré **en situation d’urgence**.
+        - **PLT (/mm³)** :  Valeur du nombre de plaquettes mesuré **en urgence**.
         - **Nbre de GB (/mm³)** : Valeur du nombre de globules blancs lors du **suivi régulier**.
         - **Nbre de PLT (/mm³)** : Valeur du nombre de plaquettes lors du **suivi régulier**.
         - **HB (g/dl)** : Taux d’hémoglobine mesuré.
@@ -122,9 +122,9 @@ def show_deployment():
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 help_text = None
                 if var == "GB (/mm3)":
-                    help_text = "Taux de globules blancs mesuré en urgence."
+                    help_text = "Valeur du nombre de globules blancs mesuré en urgence."
                 elif var == "PLT (/mm3)":
-                    help_text = "Taux de plaquettes mesuré en urgence."
+                    help_text = "Valeur du nombre de plaquettes mesuré en urgence."
                 elif var == "Nbre de GB (/mm3)":
                     help_text = "Valeur du nombre de globules blancs en suivi régulier."
                 elif var == "Nbre de PLT (/mm3)":
@@ -234,6 +234,7 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
 
 
 
