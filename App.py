@@ -30,7 +30,7 @@ if page == "A Propos":
     **Points clés du projet :**
     - Analyse descriptive (socio-démographique, clinique, temporelle et biologique)
     - Classification non supervisée pour détecter des profils de patients
-    - Classification supervisée pour prédire l’évolution (variable cible : *Evolution*)
+    - Classification supervisée pour prédire l’évolution 
     - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
 
