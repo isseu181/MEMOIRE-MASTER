@@ -1,5 +1,5 @@
 # ================================
-# classification.py pour Streamlit - version finale mémoire-ready
+# classification.py 
 # ================================
 import streamlit as st
 import pandas as pd
@@ -217,5 +217,6 @@ def show_classification():
             st.plotly_chart(fig_imp)
         else:
             st.info("Pas de variable importance disponible pour ce modèle.")
+
 
 
