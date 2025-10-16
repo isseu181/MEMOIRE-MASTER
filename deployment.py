@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest (version médecin)
+# deployment.py - Déploiement Random Forest 
 # ================================
 import streamlit as st
 import pandas as pd
@@ -180,3 +180,4 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
+
