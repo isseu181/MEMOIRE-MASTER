@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest 
+# deployment.py - Déploiement Random Forest (version médecin)
 # ================================
 import streamlit as st
 import pandas as pd
@@ -8,7 +8,7 @@ import joblib
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
 
-    # --- Style CSS ---
+    # ---  Style CSS  ---
     st.markdown("""
         <style>
         body {
@@ -91,26 +91,42 @@ def show_deployment():
         inputs = {}
         col1, col2 = st.columns(2)
 
+        # --- Colonne 1 ---
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
+        # --- Colonne 2 ---
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
+
             for var in binary_vars[len(binary_vars)//2:]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-            inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
+            inputs['NiveauUrgence'] = st.slider(
+                "Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 
+                1, 6, 1
+            )
+
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
                 options=[0,1,2,3,4],
                 format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x]
             )
-            inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
-            inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
+
+            inputs["Diagnostic Catégorisé"] = st.selectbox(
+                "Diagnostic Catégorisé", 
+                options=diagnostic_categories
+            )
+
+            inputs["Mois"] = st.selectbox(
+                "Mois", 
+                options=mois_categories
+            )
 
         submitted = st.form_submit_button("🔮 Prédire")
 
@@ -139,10 +155,10 @@ def show_deployment():
             <div class="reco">
                 <h4>Recommandations cliniques :</h4>
                 <ul>
-                    <li>Poursuivre le suivi médical régulier selon le protocole en vigueur.</li>
-                    <li>Vérifier la bonne observance de la prophylaxie et des traitements préventifs.</li>
-                    <li>Confirmer que les vaccinations spécifiques sont à jour.</li>
-                    <li>Encourager une hydratation et une hygiène de vie adaptées.</li>
+                    <li>Maintenir le suivi médical régulier selon le protocole établi</li>
+                    <li>Poursuivre la prophylaxie médicamenteuse et la couverture vaccinale</li>
+                    <li>Surveiller périodiquement les constantes biologiques (Hb, GB, PLT, CRP)</li>
+                    <li>Documenter toute modification clinique dans le dossier patient</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -156,10 +172,11 @@ def show_deployment():
             <div class="reco-bad">
                 <h4>Recommandations cliniques :</h4>
                 <ul>
-                    <li>Envisager une évaluation clinique approfondie et un bilan complémentaire.</li>
-                    <li>Mettre en place une surveillance rapprochée des paramètres cliniques et biologiques.</li>
-                    <li>Réévaluer la prophylaxie, le traitement de fond et l’observance thérapeutique.</li>
-                    <li>Adapter la prise en charge selon l’évolution clinique et le contexte du patient.</li>
+                    <li>Renforcer le suivi médical rapproché et la fréquence des bilans</li>
+                    <li>Réévaluer la prophylaxie, le traitement de fond et l’observance thérapeutique</li>
+                    <li>Surveiller de près les signes cliniques d’alerte : fièvre, pâleur, douleurs osseuses ou abdominales</li>
+                    <li>Envisager une adaptation thérapeutique (transfusions, traitement symptomatique, hospitalisation préventive)</li>
+                    <li>Consigner et communiquer toute évolution clinique significative</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
