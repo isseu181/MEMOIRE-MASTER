@@ -1,5 +1,5 @@
 # ================================
-# deployment.py - Déploiement Random Forest 
+# deployment.py - Déploiement Random Forest (version médecin)
 # ================================
 import streamlit as st
 import pandas as pd
@@ -60,7 +60,7 @@ def show_deployment():
         model = joblib.load("random_forest_model.pkl")
         scaler = joblib.load("scaler.pkl")
     except:
-        st.error("Impossible de charger le modèle ou le scaler.")
+        st.error("❌ Impossible de charger le modèle ou le scaler.")
         return
 
     # --- Variables ---
@@ -84,33 +84,7 @@ def show_deployment():
     diagnostic_categories = [c.replace("Diagnostic Catégorisé_", "") for c in model_features if "Diagnostic Catégorisé_" in c]
     mois_categories = [c.replace("Mois_", "") for c in model_features if "Mois_" in c]
 
-    st.markdown("###  Remplissez le formulaire du patient pour estimer son évolution clinique")
-
-    # --- Dictionnaire des variables ---
-    with st.expander(" Voir les définitions des variables"):
-        st.markdown("""
-        **Variables biologiques :**
-        - **GB (/mm³)** : Valeur du nombre de globules blancs mesuré **en situation d’urgence**.
-        - **PLT (/mm³)** :  Valeur du nombre de plaquettes mesuré **en urgence**.
-        - **Nbre de GB (/mm³)** : Valeur du nombre de globules blancs lors du **suivi régulier**.
-        - **Nbre de PLT (/mm³)** : Valeur du nombre de plaquettes lors du **suivi régulier**.
-        - **HB (g/dl)** : Taux d’hémoglobine mesuré.
-        - **CRP Si positive (Valeur)** : Valeur de la protéine C-réactive lorsqu’elle est positive.
-        - **% d’Hb S / % d’Hb F** : Répartition des fractions d’hémoglobine.
-        - **GR (/mm3)** : Nombre de globules rouges.
-        - **VGM (fl/u3)** : Volume globulaire moyen.
-        - **TCMH (g/dl)** : Teneur corpusculaire moyenne en hémoglobine.
-        
-
-        **Variables cliniques :**
-        - **Pâleur**, **Splénomégalie**, **Souffle systolique fonctionnel** : Observations cliniques binaires (1 = Oui, 0 = Non).
-        - **Niveau d’urgence** : Cotation de 1 à 6 indiquant la gravité clinique.
-        - **Niveau d’instruction scolarité** : Niveau de scolarisation du patient.
-
-        **Autres :**
-        - **Diagnostic catégorisé** : Type principal de diagnostic.
-        - **Mois** : Mois de la consultation ou du suivi.
-        """)
+    st.markdown("### 🧾 Remplissez le formulaire du patient pour estimer l’évolution clinique")
 
     # --- FORMULAIRE ---
     with st.form("patient_form"):
@@ -120,67 +94,38 @@ def show_deployment():
         # --- Colonne 1 ---
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
-                help_text = None
-                if var == "GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs mesuré en urgence."
-                elif var == "PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes mesuré en urgence."
-                elif var == "Nbre de GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
-                elif var == "Nbre de PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
             for var in binary_vars[:len(binary_vars)//2]:
-                inputs[var] = st.selectbox(
-                    f"{var} (OUI=1, NON=0)", 
-                    options=[0,1],
-                    help=f"Indique la présence ou non de {var.lower()}."
-                )
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
         # --- Colonne 2 ---
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
-                help_text = None
-                if var == "GB (/mm3)":
-                    help_text = "Taux de globules blancs mesuré en urgence."
-                elif var == "PLT (/mm3)":
-                    help_text = "Taux de plaquettes mesuré en urgence."
-                elif var == "Nbre de GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
-                elif var == "Nbre de PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
 
             for var in binary_vars[len(binary_vars)//2:]:
-                inputs[var] = st.selectbox(
-                    f"{var} (OUI=1, NON=0)", 
-                    options=[0,1],
-                    help=f"Indique la présence ou non de {var.lower()}."
-                )
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
             inputs['NiveauUrgence'] = st.slider(
                 "Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 
-                1, 6, 1,
-                help="Échelle d’évaluation de la gravité clinique (1 = plus urgente, 6 = moins urgente)."
+                1, 6, 1
             )
 
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
                 options=[0,1,2,3,4],
-                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x],
-                help="Niveau de scolarisation du patient."
+                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x]
             )
 
             inputs["Diagnostic Catégorisé"] = st.selectbox(
                 "Diagnostic Catégorisé", 
-                options=diagnostic_categories,
-                help="Type de diagnostic principal observé."
+                options=diagnostic_categories
             )
+
             inputs["Mois"] = st.selectbox(
                 "Mois", 
-                options=mois_categories,
-                help="Mois de référence de la consultation."
+                options=mois_categories
             )
 
         submitted = st.form_submit_button("🔮 Prédire")
@@ -208,12 +153,12 @@ def show_deployment():
                 <p>Probabilité de complication : <b>{pred_proba:.2f}</b></p>
             </div>
             <div class="reco">
-                <h4> Recommandations :</h4>
+                <h4>Recommandations cliniques :</h4>
                 <ul>
-                    <li>Maintenir le suivi médical régulier </li>
-                    <li>Conserver une bonne hygiène de vie (alimentation, hydratation, repos)</li>
-                    <li>Poursuivre la prophylaxie et les vaccinations </li>
-                    <li>Informer le médecin en cas de changement d’état </li>
+                    <li>Maintenir le suivi médical régulier selon le protocole établi</li>
+                    <li>Poursuivre la prophylaxie médicamenteuse et la couverture vaccinale</li>
+                    <li>Surveiller périodiquement les constantes biologiques (Hb, GB, PLT, CRP)</li>
+                    <li>Documenter toute modification clinique dans le dossier patient</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -221,25 +166,17 @@ def show_deployment():
         else:
             st.markdown(f"""
             <div class="prediction-card-bad">
-                <h3> Évolution prévue : <b>Complications possibles</b></h3>
-                <p>Probabilité : <b>{pred_proba:.2f}</b></p>
+                <h3>⚠️ Évolution prévue : <b>Complications possibles</b></h3>
+                <p>Probabilité estimée : <b>{pred_proba:.2f}</b></p>
             </div>
             <div class="reco-bad">
-                <h4> Recommandations :</h4>
+                <h4>Recommandations cliniques :</h4>
                 <ul>
-                    <li>Renforcer le suivi médical rapproché </li>
-                    <li>Réévaluer la prophylaxie et le traitement </li>
-                    <li>Contrôler plus fréquemment les paramètres biologiques </li>
-                    <li>Contacter immédiatement le médecin en cas de fièvre, douleur, ou pâleur accrue </li>
+                    <li>Renforcer le suivi médical rapproché et la fréquence des bilans</li>
+                    <li>Réévaluer la prophylaxie, le traitement de fond et l’observance thérapeutique</li>
+                    <li>Surveiller de près les signes cliniques d’alerte : fièvre, pâleur, douleurs osseuses ou abdominales</li>
+                    <li>Envisager une adaptation thérapeutique (transfusions, traitement symptomatique, hospitalisation préventive)</li>
+                    <li>Consigner et communiquer toute évolution clinique significative</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-
-
-
-
-
-
-
-
-
