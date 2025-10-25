@@ -103,6 +103,7 @@ def show_clustering():
         5. **Analyse en Composantes Principales (ACP)** : visualisation  des clusters.  
         """)
 
+        # Graphe du coude
         inertia = []
         K_range = range(1, 11)
         for k in K_range:
@@ -123,7 +124,7 @@ def show_clustering():
 
     # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
-        st.subheader("Visualisation PCA 2D avec flèches des variables")
+        st.subheader("Visualisation PCA 2D avec formes et couleurs des clusters")
         pca = PCA(n_components=2)
         components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
         df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
@@ -134,35 +135,41 @@ def show_clustering():
         st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
         st.write(f"**Variance totale expliquée :** {(explained_var[0]+explained_var[1]):.2%}")
 
+        # Couleurs et symboles fixes
         cluster_colors = {0:'blue', 1:'orange', 2:'green'}
+        cluster_symbols = {0:'circle', 1:'square', 2:'diamond'}
 
         fig = go.Figure()
         for c in sorted(df_pca['Cluster'].unique()):
             subset = df_pca[df_pca['Cluster']==c]
             fig.add_trace(go.Scatter(
                 x=subset['PC1'], y=subset['PC2'], mode='markers',
-                name=f'Cluster {c}', marker=dict(size=8, color=cluster_colors.get(c,'grey')),
-                text=[f"Patient {i}" for i in subset.index], hoverinfo='text'
+                name=f'Cluster {c}',
+                marker=dict(size=8, color=cluster_colors[c], symbol=cluster_symbols[c]),
+                text=[f"Patient {i}" for i in subset.index],
+                hoverinfo='text'
             ))
 
-        # Flèches des variables (loadings PCA)
+        # Flèches des variables
         loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
         cols = df_scaled.drop("Cluster", axis=1).columns
         scale = 3 / max(np.sqrt(loadings[:,0]**2 + loadings[:,1]**2))
+
         for i, col in enumerate(cols):
             x, y = loadings[i,0]*scale, loadings[i,1]*scale
             fig.add_trace(go.Scatter(
-                x=[0, x], y=[0, y], mode='lines+markers+text',
-                marker=dict(size=1, color='red'),
+                x=[0, x], y=[0, y], mode='lines+text',
                 line=dict(color='red', width=2),
                 text=[None, col], textposition="top center",
                 showlegend=False
             ))
 
-        fig.update_layout(title="PCA 2D - Clusters + Flèches des variables",
-                          xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
-                          yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
-                          width=900, height=600)
+        fig.update_layout(
+            title="PCA 2D - Clusters et Variables",
+            xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
+            yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
+            width=900, height=600
+        )
         st.plotly_chart(fig)
 
     # --- Onglet 3 : Profil détaillé ---
