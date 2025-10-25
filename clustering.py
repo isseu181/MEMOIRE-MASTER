@@ -124,7 +124,7 @@ def show_clustering():
 
     # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
-        st.subheader("Visualisation PCA 2D avec formes et couleurs des clusters")
+        st.subheader("Visualisation PCA  avec formes et couleurs des clusters")
         pca = PCA(n_components=2)
         components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
         df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
@@ -165,7 +165,7 @@ def show_clustering():
             ))
 
         fig.update_layout(
-            title="PCA 2D - Clusters et Variables",
+            title="PCA  - Clusters et Variables",
             xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
             yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
             width=900, height=600
@@ -192,3 +192,4 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
+
