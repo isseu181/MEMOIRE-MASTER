@@ -6,6 +6,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+from matplotlib.patches import Ellipse
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -15,7 +17,7 @@ def show_clustering():
     st.title("Segmentation de Patients - KMeans Clustering")
 
     # ================================
-    # 1. Chargement  de la base
+    # 1. Chargement de la base
     # ================================
     df = pd.read_excel("segmentation.xlsx")
     df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
@@ -63,11 +65,8 @@ def show_clustering():
         "Infections": {"OUI": 1, "NON": 0},
         "Ictère": {"OUI": 1, "NON": 0},
     }
-
     df_selected.replace(binary_mappings, inplace=True)
-    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique"])
-    df_selected = pd.get_dummies(df_selected, columns=["Prise en charge"])
-    df_selected = pd.get_dummies(df_selected, columns=["Type de drépanocytose"])
+    df_selected = pd.get_dummies(df_selected, columns=["Origine Géographique", "Prise en charge", "Type de drépanocytose"])
 
     # ================================
     # 4. Standardisation
@@ -89,22 +88,13 @@ def show_clustering():
     df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
     # ================================
-    # 5. Onglets horizontaux
+    # 5. Onglets
     # ================================
     tabs = st.tabs(["Vue d'ensemble", "Visualisation ACP", "Profil détaillé"])
 
     # --- Onglet 1 : Vue d'ensemble ---
     with tabs[0]:
-        st.subheader("Méthodologie et Graphe du coude")
-        st.markdown("""
-        ### Étapes méthodologiques utilisées :
-        1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.  
-        2. **Encodage** : transformation des variables qualitatives (binaire et catégorielle).  
-        3. **Standardisation** : mise à l’échelle des variables quantitatives en z-scores.  
-        4. **Clustering KMeans** : segmentation des patients en groupes homogènes.  
-        5. **Analyse en Composantes Principales (ACP)** : visualisation  des clusters.  
-        """)
-
+        st.subheader("Graphe du coude et Clustering")
         inertia = []
         K_range = range(1, 11)
         for k in K_range:
@@ -123,7 +113,7 @@ def show_clustering():
         kmeans = KMeans(n_clusters=n_clusters, random_state=42)
         df['Cluster'] = kmeans.fit_predict(df_scaled)
         df_scaled["Cluster"] = df["Cluster"]
-        st.success("Clustering effectué !")
+        st.success(f"Clustering effectué avec {n_clusters} clusters !")
 
     # --- Onglet 2 : Visualisation ACP ---
     with tabs[1]:
@@ -139,36 +129,37 @@ def show_clustering():
         st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
         st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
 
-        fig, ax = plt.subplots()
-        sns.scatterplot(data=df_pca, x='PC1', y='PC2', hue='Cluster', palette='tab10', ax=ax)
-        ax.set_title("Clusters visualisés sur les 2 premières composantes principales")
+        # PCA Scatter avec ellipses
+        fig, ax = plt.subplots(figsize=(8,6))
+        colors = ['blue', 'orange', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan', 'magenta']
+        for c in df_pca['Cluster'].unique():
+            subset = df_pca[df_pca['Cluster']==c]
+            ax.scatter(subset['PC1'], subset['PC2'], s=50, alpha=0.5, label=f'Cluster {c}', color=colors[c])
+            
+            # Ellipse de concentration
+            cov = np.cov(subset[['PC1','PC2']].T)
+            mean = subset[['PC1','PC2']].mean().values
+            eigenvals, eigenvecs = np.linalg.eigh(cov)
+            order = eigenvals.argsort()[::-1]
+            eigenvals, eigenvecs = eigenvals[order], eigenvecs[:, order]
+            angle = np.degrees(np.arctan2(*eigenvecs[:,0][::-1]))
+            width, height = 2*np.sqrt(eigenvals)
+            ellipse = Ellipse(xy=mean, width=width, height=height, angle=angle,
+                              edgecolor=colors[c], fc='none', lw=2, ls='--')
+            ax.add_patch(ellipse)
+        ax.set_title("Clusters sur les 2 premières composantes principales")
+        ax.legend()
         st.pyplot(fig)
 
     # --- Onglet 3 : Profil détaillé ---
     with tabs[2]:
         st.subheader("Profil détaillé des clusters")
-
-        # Nombre de patients par cluster
-        st.write("### Nombre de patients par cluster")
         cluster_counts = df['Cluster'].value_counts().sort_index()
+        st.write("### Nombre de patients par cluster")
         st.dataframe(cluster_counts.rename("Nombre de patients"))
 
-        # Données complètes avec attribution de cluster (variables sélectionnées par utilisateur)
-        st.write("### Données complètes avec attribution de cluster")
-        cols_to_show = st.multiselect(
-            "Sélectionnez les variables à afficher :",
-            options=variables_selected,
-            default=quantitative_vars[:3]  # par défaut, afficher les 3 premières variables quantitatives
-        )
-        if cols_to_show:
-            st.dataframe(df[cols_to_show + ["Cluster"]])
-        else:
-            st.warning("Veuillez sélectionner au moins une variable à afficher.")
-
-        # Moyennes Z-scores par cluster
-        st.write("### Moyennes standardisées (Z-scores) des variables par cluster :")
+        st.write("### Moyennes standardisées (Z-scores) par cluster")
         cluster_means = df_scaled.groupby("Cluster").mean().T
-
         interpretations = []
         for var, row in cluster_means.iterrows():
             max_cluster = row.idxmax()
@@ -180,8 +171,3 @@ def show_clustering():
             interpretations.append(interp)
         cluster_means["Interprétation"] = interpretations
         st.dataframe(cluster_means)
-
-
-
-
-
