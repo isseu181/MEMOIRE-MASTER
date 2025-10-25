@@ -87,82 +87,101 @@ def show_clustering():
     df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
     # ================================
-    # 5. Clustering
+    # 5. Onglets
     # ================================
-    st.subheader("Clustering KMeans interactif")
-    n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    df['Cluster'] = kmeans.fit_predict(df_scaled)
-    df_scaled["Cluster"] = df["Cluster"]
-    st.success(f"Clustering effectué avec {n_clusters} clusters !")
+    tabs = st.tabs(["Vue d'ensemble", "Visualisation ACP", "Profil détaillé"])
 
-    # ================================
-    # 6. PCA + Biplot interactif
-    # ================================
-    st.subheader("Visualisation interactive PCA 2D avec flèches des variables")
-    pca = PCA(n_components=2)
-    components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
-    df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
-    df_pca['Cluster'] = df['Cluster']
+    # --- Onglet 1 : Vue d'ensemble ---
+    with tabs[0]:
+        st.subheader("Méthodologie et Graphe du coude")
+        st.markdown("""
+        ### Étapes méthodologiques utilisées :
+        1. **Prétraitement des données** : nettoyage et sélection des variables pertinentes.  
+        2. **Encodage** : transformation des variables qualitatives (binaire et catégorielle).  
+        3. **Standardisation** : mise à l’échelle des variables quantitatives en z-scores.  
+        4. **Clustering KMeans** : segmentation des patients en groupes homogènes.  
+        5. **Analyse en Composantes Principales (ACP)** : visualisation  des clusters.  
+        """)
 
-    # Variance expliquée
-    explained_var = pca.explained_variance_ratio_
-    st.write(f"**Variance expliquée par PC1 :** {explained_var[0]:.2%}")
-    st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
-    st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
+        inertia = []
+        K_range = range(1, 11)
+        for k in K_range:
+            kmeans_test = KMeans(n_clusters=k, random_state=42)
+            kmeans_test.fit(df_scaled)
+            inertia.append(kmeans_test.inertia_)
 
-    # Couleurs
-    colors = px.colors.qualitative.Safe
+        fig = px.line(x=list(K_range), y=inertia, markers=True,
+                      labels={'x': "Nombre de clusters (k)", 'y': "Inertia (SSE)"},
+                      title="Graphe du coude pour KMeans")
+        st.plotly_chart(fig)
 
-    # Scatter interactif des patients
-    fig = go.Figure()
-    for c in sorted(df_pca['Cluster'].unique()):
-        subset = df_pca[df_pca['Cluster']==c]
-        fig.add_trace(go.Scatter(
-            x=subset['PC1'], y=subset['PC2'], mode='markers',
-            name=f'Cluster {c}', marker=dict(size=8, color=colors[c]),
-            text=[f"Patient {i}" for i in subset.index], hoverinfo='text'
-        ))
+        n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+        df['Cluster'] = kmeans.fit_predict(df_scaled)
+        df_scaled["Cluster"] = df["Cluster"]
+        st.success(f"Clustering effectué avec {n_clusters} clusters !")
 
-    # Flèches des variables (loadings PCA)
-    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
-    cols = df_scaled.drop("Cluster", axis=1).columns
-    max_arrow_length = 3.0
-    scale = max_arrow_length / max(np.sqrt(loadings[:,0]**2 + loadings[:,1]**2))
-    for i, col in enumerate(cols):
-        x, y = loadings[i,0]*scale, loadings[i,1]*scale
-        fig.add_trace(go.Scatter(
-            x=[0, x], y=[0, y], mode='lines+markers+text',
-            marker=dict(size=1, color='red'),
-            line=dict(color='red', width=2),
-            text=[None, col], textposition="top center",
-            showlegend=False
-        ))
+    # --- Onglet 2 : Visualisation ACP ---
+    with tabs[1]:
+        st.subheader("Visualisation PCA 2D avec flèches des variables")
+        pca = PCA(n_components=2)
+        components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
+        df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
+        df_pca['Cluster'] = df['Cluster']
 
-    fig.update_layout(title="PCA 2D - Clusters + Flèches des variables",
-                      xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
-                      yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
-                      width=900, height=600)
-    st.plotly_chart(fig)
+        explained_var = pca.explained_variance_ratio_
+        st.write(f"**Variance expliquée par PC1 :** {explained_var[0]:.2%}")
+        st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
+        st.write(f"**Variance totale expliquée :** {(explained_var[0]+explained_var[1]):.2%}")
 
-    # ================================
-    # 7. Profil détaillé
-    # ================================
-    st.subheader("Profil détaillé des clusters")
-    cluster_counts = df['Cluster'].value_counts().sort_index()
-    st.write("### Nombre de patients par cluster")
-    st.dataframe(cluster_counts.rename("Nombre de patients"))
+        cluster_colors = {0:'blue', 1:'orange', 2:'green'}
 
-    st.write("### Moyennes standardisées (Z-scores) par cluster")
-    cluster_means = df_scaled.groupby("Cluster").mean().T
-    interpretations = []
-    for var, row in cluster_means.iterrows():
-        max_cluster = row.idxmax()
-        min_cluster = row.idxmin()
-        if abs(row[max_cluster]) < 0.2 and abs(row[min_cluster]) < 0.2:
-            interp = "Peu discriminant"
-        else:
-            interp = f"Plus élevé dans Cluster {max_cluster}, plus bas dans Cluster {min_cluster}"
-        interpretations.append(interp)
-    cluster_means["Interprétation"] = interpretations
-    st.dataframe(cluster_means)
+        fig = go.Figure()
+        for c in sorted(df_pca['Cluster'].unique()):
+            subset = df_pca[df_pca['Cluster']==c]
+            fig.add_trace(go.Scatter(
+                x=subset['PC1'], y=subset['PC2'], mode='markers',
+                name=f'Cluster {c}', marker=dict(size=8, color=cluster_colors.get(c,'grey')),
+                text=[f"Patient {i}" for i in subset.index], hoverinfo='text'
+            ))
+
+        # Flèches des variables (loadings PCA)
+        loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+        cols = df_scaled.drop("Cluster", axis=1).columns
+        scale = 3 / max(np.sqrt(loadings[:,0]**2 + loadings[:,1]**2))
+        for i, col in enumerate(cols):
+            x, y = loadings[i,0]*scale, loadings[i,1]*scale
+            fig.add_trace(go.Scatter(
+                x=[0, x], y=[0, y], mode='lines+markers+text',
+                marker=dict(size=1, color='red'),
+                line=dict(color='red', width=2),
+                text=[None, col], textposition="top center",
+                showlegend=False
+            ))
+
+        fig.update_layout(title="PCA 2D - Clusters + Flèches des variables",
+                          xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
+                          yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
+                          width=900, height=600)
+        st.plotly_chart(fig)
+
+    # --- Onglet 3 : Profil détaillé ---
+    with tabs[2]:
+        st.subheader("Profil détaillé des clusters")
+        cluster_counts = df['Cluster'].value_counts().sort_index()
+        st.write("### Nombre de patients par cluster")
+        st.dataframe(cluster_counts.rename("Nombre de patients"))
+
+        st.write("### Moyennes standardisées (Z-scores) par cluster")
+        cluster_means = df_scaled.groupby("Cluster").mean().T
+        interpretations = []
+        for var, row in cluster_means.iterrows():
+            max_cluster = row.idxmax()
+            min_cluster = row.idxmin()
+            if abs(row[max_cluster]) < 0.2 and abs(row[min_cluster]) < 0.2:
+                interp = "Peu discriminant"
+            else:
+                interp = f"Plus élevé dans Cluster {max_cluster}, plus bas dans Cluster {min_cluster}"
+            interpretations.append(interp)
+        cluster_means["Interprétation"] = interpretations
+        st.dataframe(cluster_means)
