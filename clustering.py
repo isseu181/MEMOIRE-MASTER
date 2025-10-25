@@ -4,17 +4,16 @@ import streamlit as st
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-import seaborn as sns
 import numpy as np
-from matplotlib.patches import Ellipse
+import plotly.graph_objects as go
+import plotly.express as px
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings('ignore')
 
 def show_clustering():
-    st.title("Segmentation de Patients - KMeans Clustering")
+    st.title("Segmentation de Patients - KMeans Clustering (Plotly interactif)")
 
     # ================================
     # 1. Chargement de la base
@@ -88,86 +87,82 @@ def show_clustering():
     df_scaled[quantitative_vars] = scaler.fit_transform(df_selected[quantitative_vars])
 
     # ================================
-    # 5. Onglets
+    # 5. Clustering
     # ================================
-    tabs = st.tabs(["Vue d'ensemble", "Visualisation ACP", "Profil détaillé"])
+    st.subheader("Clustering KMeans interactif")
+    n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    df['Cluster'] = kmeans.fit_predict(df_scaled)
+    df_scaled["Cluster"] = df["Cluster"]
+    st.success(f"Clustering effectué avec {n_clusters} clusters !")
 
-    # --- Onglet 1 : Vue d'ensemble ---
-    with tabs[0]:
-        st.subheader("Graphe du coude et Clustering")
-        inertia = []
-        K_range = range(1, 11)
-        for k in K_range:
-            kmeans_test = KMeans(n_clusters=k, random_state=42)
-            kmeans_test.fit(df_scaled)
-            inertia.append(kmeans_test.inertia_)
+    # ================================
+    # 6. PCA + Biplot interactif
+    # ================================
+    st.subheader("Visualisation interactive PCA 2D avec flèches des variables")
+    pca = PCA(n_components=2)
+    components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
+    df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
+    df_pca['Cluster'] = df['Cluster']
 
-        fig, ax = plt.subplots()
-        ax.plot(list(K_range), inertia, marker='o')
-        ax.set_xlabel("Nombre de clusters (k)")
-        ax.set_ylabel("Inertia (SSE)")
-        ax.set_title("Graphe du coude pour KMeans")
-        st.pyplot(fig)
+    # Variance expliquée
+    explained_var = pca.explained_variance_ratio_
+    st.write(f"**Variance expliquée par PC1 :** {explained_var[0]:.2%}")
+    st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
+    st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
 
-        n_clusters = st.slider("Sélectionner le nombre de clusters", 2, 10, 3)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-        df['Cluster'] = kmeans.fit_predict(df_scaled)
-        df_scaled["Cluster"] = df["Cluster"]
-        st.success(f"Clustering effectué avec {n_clusters} clusters !")
+    # Couleurs
+    colors = px.colors.qualitative.Safe
 
-    # --- Onglet 2 : Visualisation ACP ---
-    with tabs[1]:
-        st.subheader("Visualisation des clusters via PCA 2D")
-        pca = PCA(n_components=2)
-        components = pca.fit_transform(df_scaled.drop("Cluster", axis=1))
-        df_pca = pd.DataFrame(components, columns=['PC1','PC2'])
-        df_pca['Cluster'] = df['Cluster']
+    # Scatter interactif des patients
+    fig = go.Figure()
+    for c in sorted(df_pca['Cluster'].unique()):
+        subset = df_pca[df_pca['Cluster']==c]
+        fig.add_trace(go.Scatter(
+            x=subset['PC1'], y=subset['PC2'], mode='markers',
+            name=f'Cluster {c}', marker=dict(size=8, color=colors[c]),
+            text=[f"Patient {i}" for i in subset.index], hoverinfo='text'
+        ))
 
-        # Variance expliquée
-        explained_var = pca.explained_variance_ratio_
-        st.write(f"**Variance expliquée par PC1 :** {explained_var[0]:.2%}")
-        st.write(f"**Variance expliquée par PC2 :** {explained_var[1]:.2%}")
-        st.write(f"**Variance totale expliquée par PC1 et PC2 :** {(explained_var[0]+explained_var[1]):.2%}")
+    # Flèches des variables (loadings PCA)
+    loadings = pca.components_.T * np.sqrt(pca.explained_variance_)
+    cols = df_scaled.drop("Cluster", axis=1).columns
+    max_arrow_length = 3.0
+    scale = max_arrow_length / max(np.sqrt(loadings[:,0]**2 + loadings[:,1]**2))
+    for i, col in enumerate(cols):
+        x, y = loadings[i,0]*scale, loadings[i,1]*scale
+        fig.add_trace(go.Scatter(
+            x=[0, x], y=[0, y], mode='lines+markers+text',
+            marker=dict(size=1, color='red'),
+            line=dict(color='red', width=2),
+            text=[None, col], textposition="top center",
+            showlegend=False
+        ))
 
-        # PCA Scatter avec ellipses
-        fig, ax = plt.subplots(figsize=(8,6))
-        colors = ['blue', 'orange', 'green', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan', 'magenta']
-        for c in df_pca['Cluster'].unique():
-            subset = df_pca[df_pca['Cluster']==c]
-            ax.scatter(subset['PC1'], subset['PC2'], s=50, alpha=0.5, label=f'Cluster {c}', color=colors[c])
-            
-            # Ellipse de concentration
-            cov = np.cov(subset[['PC1','PC2']].T)
-            mean = subset[['PC1','PC2']].mean().values
-            eigenvals, eigenvecs = np.linalg.eigh(cov)
-            order = eigenvals.argsort()[::-1]
-            eigenvals, eigenvecs = eigenvals[order], eigenvecs[:, order]
-            angle = np.degrees(np.arctan2(*eigenvecs[:,0][::-1]))
-            width, height = 2*np.sqrt(eigenvals)
-            ellipse = Ellipse(xy=mean, width=width, height=height, angle=angle,
-                              edgecolor=colors[c], fc='none', lw=2, ls='--')
-            ax.add_patch(ellipse)
-        ax.set_title("Clusters sur les 2 premières composantes principales")
-        ax.legend()
-        st.pyplot(fig)
+    fig.update_layout(title="PCA 2D - Clusters + Flèches des variables",
+                      xaxis_title=f"PC1 ({explained_var[0]*100:.1f}%)",
+                      yaxis_title=f"PC2 ({explained_var[1]*100:.1f}%)",
+                      width=900, height=600)
+    st.plotly_chart(fig)
 
-    # --- Onglet 3 : Profil détaillé ---
-    with tabs[2]:
-        st.subheader("Profil détaillé des clusters")
-        cluster_counts = df['Cluster'].value_counts().sort_index()
-        st.write("### Nombre de patients par cluster")
-        st.dataframe(cluster_counts.rename("Nombre de patients"))
+    # ================================
+    # 7. Profil détaillé
+    # ================================
+    st.subheader("Profil détaillé des clusters")
+    cluster_counts = df['Cluster'].value_counts().sort_index()
+    st.write("### Nombre de patients par cluster")
+    st.dataframe(cluster_counts.rename("Nombre de patients"))
 
-        st.write("### Moyennes standardisées (Z-scores) par cluster")
-        cluster_means = df_scaled.groupby("Cluster").mean().T
-        interpretations = []
-        for var, row in cluster_means.iterrows():
-            max_cluster = row.idxmax()
-            min_cluster = row.idxmin()
-            if abs(row[max_cluster]) < 0.2 and abs(row[min_cluster]) < 0.2:
-                interp = "Peu discriminant"
-            else:
-                interp = f"Plus élevé dans Cluster {max_cluster}, plus bas dans Cluster {min_cluster}"
-            interpretations.append(interp)
-        cluster_means["Interprétation"] = interpretations
-        st.dataframe(cluster_means)
+    st.write("### Moyennes standardisées (Z-scores) par cluster")
+    cluster_means = df_scaled.groupby("Cluster").mean().T
+    interpretations = []
+    for var, row in cluster_means.iterrows():
+        max_cluster = row.idxmax()
+        min_cluster = row.idxmin()
+        if abs(row[max_cluster]) < 0.2 and abs(row[min_cluster]) < 0.2:
+            interp = "Peu discriminant"
+        else:
+            interp = f"Plus élevé dans Cluster {max_cluster}, plus bas dans Cluster {min_cluster}"
+        interpretations.append(interp)
+    cluster_means["Interprétation"] = interpretations
+    st.dataframe(cluster_means)
