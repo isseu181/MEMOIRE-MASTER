@@ -22,7 +22,11 @@ page = st.sidebar.radio("Aller à :", [
 # A Propos
 # ============================
 if page == "A Propos":
-    st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
+    # --- Titre réduit et centré ---
+    st.markdown(
+        "<h2 style='text-align: center; color: black;'>Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants</h2>",
+        unsafe_allow_html=True
+    )
     
     st.markdown("""
     Ce projet a pour objectif d’analyser les urgences drépanocytaires, 
@@ -43,7 +47,7 @@ if page == "A Propos":
         st.image(
             image,
             caption="Urgences drépanocytaires : analyse et prédiction",
-            width=800  # 🔹 largeur augmentée
+            width=800  # largeur augmentée
         )
 
 # ============================
