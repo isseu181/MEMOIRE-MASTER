@@ -36,7 +36,10 @@ if page == "A Propos":
     """)
     
     # --- Ajout image
-    st.image("drepano.png", caption="Urgences drépanocytaires : analyse et prédiction", use_container_width=True)
+    st.image("drepano.png", 
+         caption="Urgences drépanocytaires : analyse et prédiction", 
+         use_container_width=False, 
+         width=800)
     
     # --------------------------------------------------------
 
