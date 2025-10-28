@@ -22,6 +22,11 @@ page = st.sidebar.radio("Aller à :", [
 # ============================
 if page == "A Propos":
     st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
+    
+    # Ajout de l image
+    st.image("drepano.png", caption="Urgences drépanocytaires chez les enfants", use_column_width=True)
+    # 
+
     st.markdown("""
     Ce projet a pour objectif d’analyser les urgences drépanocytaires , 
     d’identifier leurs caractéristiques cliniques, biologiques et temporelles, et de prédire leur évolution 
