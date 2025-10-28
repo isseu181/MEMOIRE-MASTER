@@ -24,7 +24,7 @@ if page == "A Propos":
     st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
     
     # Ajout de l image
-    st.image("drepano.png", caption="Urgences drépanocytaires chez les enfants", use_column_width=True)
+    st.image("drepano.png", caption="", use_container_width=True)
     # 
 
     st.markdown("""
