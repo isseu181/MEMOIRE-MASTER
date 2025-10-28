@@ -24,9 +24,9 @@ if page == "A Propos":
     st.title("Analyse et prédiction de l’évolution des urgences drépanocytaires chez les enfants")
     
     st.markdown("""
-    Ce projet a pour objectif d’analyser les urgences drépanocytaires , 
-    d’identifier leurs caractéristiques cliniques, biologiques et temporelles, et de prédire leur évolution 
-    à l’aide de méthodes d’intelligence artificielle.
+    Ce projet a pour objectif d’analyser les urgences drépanocytaires, 
+    d’identifier leurs caractéristiques cliniques, biologiques et temporelles, 
+    et de prédire leur évolution à l’aide de méthodes d’intelligence artificielle.
     
     **Points clés du projet :**
     - Analyse descriptive (socio-démographique, clinique, temporelle et biologique)
@@ -34,14 +34,33 @@ if page == "A Propos":
     - Classification supervisée pour prédire l’évolution 
     - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
-    
-    # --- Ajout image
-    st.image("drepano.png", 
-         caption="Urgences drépanocytaires : analyse et prédiction", 
-         use_container_width=False, 
-         width=800)
-    
-    # --------------------------------------------------------
+
+    # --- Image centrée et rectangulaire
+    st.markdown(
+        """
+        <style>
+        .centered-img {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 25px;
+            margin-bottom: 25px;
+        }
+        .centered-img img {
+            width: 80%;
+            max-width: 900px;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        </style>
+        <div class="centered-img">
+            <img src="drepano.png" alt="Urgences drépanocytaires : analyse et prédiction">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ============================
 # Analyse exploratoire
