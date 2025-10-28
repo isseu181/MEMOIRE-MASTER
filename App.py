@@ -36,7 +36,7 @@ if page == "A Propos":
     """)
     
     # --- Ajout image
-    st.image("drepano.png", caption="", width=700)
+    st.image("drepano.png", caption="", width=use_container_width=True)
     
     # --------------------------------------------------------
 
