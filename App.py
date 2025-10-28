@@ -36,13 +36,31 @@ if page == "A Propos":
     - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
 
-    # --- Image centrée avec Streamlit
-    image = Image.open("drepano.png")
-    col1, col2, col3 = st.columns([1, 3, 1])
-    with col2:
-        st.image(image, 
-                 caption="Urgences drépanocytaires : analyse et prédiction", 
-                 use_container_width=True)
+    # --- Image centrée, réduite et rectangulaire ---
+    st.markdown(
+        """
+        <style>
+        .centered-img {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 25px;
+            margin-bottom: 25px;
+        }
+        .centered-img img {
+            width: 500px;          /* largeur réduite */
+            height: 250px;         /* hauteur fixe -> rectangulaire */
+            object-fit: cover;     /* recadrage sans déformation */
+            border-radius: 15px;   /* coins arrondis */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); /* ombre douce */
+        }
+        </style>
+        <div class="centered-img">
+            <img src="drepano.png" alt="Urgences drépanocytaires : analyse et prédiction">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 # ============================
 # Analyse exploratoire
