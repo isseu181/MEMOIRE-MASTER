@@ -1,5 +1,6 @@
 # app.py
 import streamlit as st
+from PIL import Image
 import eda, clustering, classification, deployment, tableau_de_bord
 
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
@@ -35,32 +36,13 @@ if page == "A Propos":
     - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
 
-    # --- Image centrée et rectangulaire
-    st.markdown(
-        """
-        <style>
-        .centered-img {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-top: 25px;
-            margin-bottom: 25px;
-        }
-        .centered-img img {
-            width: 80%;
-            max-width: 900px;
-            height: 300px;
-            object-fit: cover;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        }
-        </style>
-        <div class="centered-img">
-            <img src="drepano.png" alt="Urgences drépanocytaires : analyse et prédiction">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # --- Image centrée avec Streamlit
+    image = Image.open("drepano.png")
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.image(image, 
+                 caption="Urgences drépanocytaires : analyse et prédiction", 
+                 use_container_width=True)
 
 # ============================
 # Analyse exploratoire
