@@ -36,18 +36,15 @@ if page == "A Propos":
     - Déploiement d’un outil interactif permettant aux médecins de visualiser et d’exploiter les résultats
     """)
 
-    # --- Image centrée et réduite ---
-    try:
-        image = Image.open("drepano.png")  # assure-toi que le fichier est bien là
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.image(
-                image,
-                caption="Urgences drépanocytaires : analyse et prédiction",
-                width=500,  # taille réduite
-            )
-    except FileNotFoundError:
-        st.error("⚠️ L'image 'drepano.png' est introuvable dans le même dossier que app.py.")
+    # --- Image centrée et large ---
+    image = Image.open("drepano.png")
+    col1, col2, col3 = st.columns([1, 3, 1])  # colonne centrale large
+    with col2:
+        st.image(
+            image,
+            caption="Urgences drépanocytaires : analyse et prédiction",
+            width=800  # 🔹 largeur augmentée
+        )
 
 # ============================
 # Analyse exploratoire
