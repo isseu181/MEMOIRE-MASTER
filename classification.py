@@ -29,12 +29,12 @@ def show_classification():
                 unsafe_allow_html=True)
 
     # ----------------------------------------------------------------------
-    # 1️⃣ Chargement des données
+    # 1️ Chargement des données
     # ----------------------------------------------------------------------
     df = pd.read_excel("fichier_nettoye.xlsx")
 
     # ----------------------------------------------------------------------
-    # 2️⃣ Sélection des variables
+    # 2️ Sélection des variables
     # ----------------------------------------------------------------------
     vars_select = [
         'Âge de début des signes (en mois)', 'NiveauUrgence', 'GR (/mm3)', 'GB (/mm3)',
@@ -54,7 +54,7 @@ def show_classification():
     df_sel = df[vars_select].copy()
 
     # ----------------------------------------------------------------------
-    # 3️⃣ Encodage
+    # 3️ Encodage
     # ----------------------------------------------------------------------
     binary_map = {
         'Pâleur': {'OUI':1,'NON':0},
@@ -79,21 +79,21 @@ def show_classification():
     df_sel = pd.get_dummies(df_sel, columns=["Diagnostic Catégorisé", "Mois"])
 
     # ----------------------------------------------------------------------
-    # 4️⃣ Variable cible
+    # 4️ Variable cible
     # ----------------------------------------------------------------------
     df_sel['Cible'] = df_sel['Evolution'].map({'Favorable':0, 'Complications':1})
     X = df_sel.drop(['Evolution', 'Cible'], axis=1)
     y = df_sel['Cible']
 
     # ----------------------------------------------------------------------
-    # 5️⃣ Division Train/Validation/Test (comme dans ton pipeline)
+    # 5️ Division Train/Validation/Test (comme dans ton pipeline)
     # ----------------------------------------------------------------------
     X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=0.20, stratify=y, random_state=42
     )
 
     # ----------------------------------------------------------------------
-    # 6️⃣ Standardisation (FIT uniquement sur TRAIN/VAL)
+    # 6️ Standardisation (FIT uniquement sur TRAIN/VAL)
     # ----------------------------------------------------------------------
     quantitative = [
         'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
@@ -109,20 +109,20 @@ def show_classification():
     X_test[quantitative] = scaler.transform(X_test[quantitative])
 
     # ----------------------------------------------------------------------
-    # 7️⃣ Seconde division Train/Val
+    # 7️ Seconde division Train/Val
     # ----------------------------------------------------------------------
     X_train, X_val, y_train, y_val = train_test_split(
         X_train_val, y_train_val, test_size=0.25, stratify=y_train_val, random_state=42
     )
 
     # ----------------------------------------------------------------------
-    # 8️⃣ SMOTETomek uniquement sur TRAIN
+    # 8️ SMOTETomek uniquement sur TRAIN
     # ----------------------------------------------------------------------
     smt = SMOTETomek(random_state=42)
     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
 
     # ----------------------------------------------------------------------
-    # 9️⃣ Fonction d’évaluation (fidèle à ton notebook)
+    # 9️ Fonction d’évaluation (fidèle à ton notebook)
     # ----------------------------------------------------------------------
     def evaluate(model, name):
 
@@ -152,7 +152,7 @@ def show_classification():
         }
 
     # ----------------------------------------------------------------------
-    # 🔟 Modèles avec les EXACTS hyperparamètres de ton notebook
+    # 10 Modèles avec les EXACTS hyperparamètres de ton notebook
     # ----------------------------------------------------------------------
     models = {
         "Decision Tree": DecisionTreeClassifier(max_depth=10, min_samples_leaf=5, random_state=42),
@@ -166,7 +166,7 @@ def show_classification():
     results = {name: evaluate(model, name) for name, model in models.items()}
 
     # ----------------------------------------------------------------------
-    # 1️⃣1️⃣ Tableau récapitulatif identique à ton notebook
+    # 11 Tableau récapitulatif identique à ton notebook
     # ----------------------------------------------------------------------
     summary = []
     for name, res in results.items():
@@ -184,7 +184,7 @@ def show_classification():
     summary_df = pd.DataFrame(summary).sort_values(by="AUC-ROC", ascending=False)
 
     # ----------------------------------------------------------------------
-    # 1️⃣2️⃣ Interface Streamlit (résumé + affichages)
+    # 12 Interface Streamlit (résumé + affichages)
     # ----------------------------------------------------------------------
     st.subheader("Résumé des performances des modèles")
     st.dataframe(summary_df)
@@ -192,7 +192,7 @@ def show_classification():
     best_model_name = summary_df.iloc[0]["Modèle"]
     best_result = results[best_model_name]
 
-    st.markdown(f"### 🥇 Meilleur modèle : **{best_model_name}**")
+    st.markdown(f"###  Meilleur modèle : **{best_model_name}**")
 
     st.write("Matrice de confusion :")
     st.write(best_result["CM"])
@@ -205,3 +205,4 @@ def show_classification():
     roc_fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
                                  mode='lines', name='Random', line=dict(dash='dash')))
     st.plotly_chart(roc_fig)
+
