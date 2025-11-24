@@ -6,7 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import warnings
-from IPython.display import display, HTML # Pour l'affichage dans des environnements comme Jupyter
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -235,3 +234,4 @@ plt.title(f'Matrice de Confusion Finale: {best_model_name}\n(Test Set - Seuil: {
 plt.xlabel('Prédiction', fontsize=12)
 plt.ylabel('Valeur Réelle', fontsize=12)
 plt.show()
+
