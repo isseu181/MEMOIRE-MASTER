@@ -93,7 +93,7 @@ def show_classification():
     )
 
     # ----------------------------------------------------------------------
-    # 6️ Standardisation (FIT uniquement sur TRAIN/VAL)
+    # 6️ Standardisation 
     # ----------------------------------------------------------------------
     quantitative = [
         'Âge de début des signes (en mois)', 'GR (/mm3)', 'GB (/mm3)',
@@ -122,7 +122,7 @@ def show_classification():
     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
 
     # ----------------------------------------------------------------------
-    # 9️ Fonction d’évaluation (fidèle à ton notebook)
+    # 9️ Fonction d’évaluation 
     # ----------------------------------------------------------------------
     def evaluate(model, name):
 
@@ -205,5 +205,6 @@ def show_classification():
     roc_fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
                                  mode='lines', name='Random', line=dict(dash='dash')))
     st.plotly_chart(roc_fig)
+
 
 
