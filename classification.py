@@ -1,5 +1,5 @@
 # ================================
-# classification.py  (VERSION CORRIGÉE)
+# classification.py  
 # ================================
 
 import streamlit as st
@@ -152,7 +152,7 @@ def show_classification():
         }
 
     # ----------------------------------------------------------------------
-    # 10 Modèles avec les EXACTS hyperparamètres de ton notebook
+    # 10 Modèles 
     # ----------------------------------------------------------------------
     models = {
         "Decision Tree": DecisionTreeClassifier(max_depth=10, min_samples_leaf=5, random_state=42),
@@ -166,7 +166,7 @@ def show_classification():
     results = {name: evaluate(model, name) for name, model in models.items()}
 
     # ----------------------------------------------------------------------
-    # 11 Tableau récapitulatif identique à ton notebook
+    # 11 Tableau récapitulatif 
     # ----------------------------------------------------------------------
     summary = []
     for name, res in results.items():
@@ -184,7 +184,7 @@ def show_classification():
     summary_df = pd.DataFrame(summary).sort_values(by="AUC-ROC", ascending=False)
 
     # ----------------------------------------------------------------------
-    # 12 Interface Streamlit (résumé + affichages)
+    # 12 Interface Streamlit 
     # ----------------------------------------------------------------------
     st.subheader("Résumé des performances des modèles")
     st.dataframe(summary_df)
@@ -205,4 +205,5 @@ def show_classification():
     roc_fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
                                  mode='lines', name='Random', line=dict(dash='dash')))
     st.plotly_chart(roc_fig)
+
 
