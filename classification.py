@@ -86,7 +86,7 @@ def show_classification():
     y = df_sel['Cible']
 
     # ----------------------------------------------------------------------
-    # 5️ Division Train/Validation/Test (comme dans ton pipeline)
+    # 5️ Division Train/Validation/Test 
     # ----------------------------------------------------------------------
     X_train_val, X_test, y_train_val, y_test = train_test_split(
         X, y, test_size=0.20, stratify=y, random_state=42
@@ -205,6 +205,7 @@ def show_classification():
     roc_fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
                                  mode='lines', name='Random', line=dict(dash='dash')))
     st.plotly_chart(roc_fig)
+
 
 
 
