@@ -202,9 +202,10 @@ def show_classification():
     fpr, tpr, _ = roc_curve(y_val, y_proba)
     roc_fig = go.Figure()
     roc_fig.add_trace(go.Scatter(x=fpr, y=tpr, mode='lines', name='ROC'))
-    roc_fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1],
+    roc_fig.add_trace(go.Scatter(x=[0 (Evolution favorable), 1 (complication)], y=[0, 1],
                                  mode='lines', name='Random', line=dict(dash='dash')))
     st.plotly_chart(roc_fig)
+
 
 
 
