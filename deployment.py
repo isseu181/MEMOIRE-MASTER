@@ -4,16 +4,13 @@
 import streamlit as st
 import pandas as pd
 import joblib
-from fpdf import FPDF
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 import io
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
-
-    # ---  Style CSS  ---
-    st.markdown(""" 
-        
-    """, unsafe_allow_html=True)
 
     st.markdown("<h1>🩺 Déploiement du Modèle Random Forest</h1>", unsafe_allow_html=True)
 
@@ -25,7 +22,7 @@ def show_deployment():
         st.error("Impossible de charger le modèle ou le scaler.")
         return
 
-    # --- Variables (quantitative_vars, binary_vars, model_features, etc.) ---
+    # Variables
     quantitative_vars = [
         'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
         'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
@@ -51,13 +48,11 @@ def show_deployment():
     with st.form("patient_form"):
         inputs = {}
         col1, col2 = st.columns(2)
-
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
-
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
@@ -71,35 +66,32 @@ def show_deployment():
             )
             inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
             inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
-
         submitted = st.form_submit_button("🔮 Prédire")
 
-    # --- Fonction pour générer PDF (corrigée : police UTF-8) ---
+    # --- Fonction pour générer PDF ---
     def generate_pdf(inputs, pred_class, pred_proba):
-        pdf = FPDF()
-        pdf.add_page()
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        styles = getSampleStyleSheet()
+        story = []
 
-        # 🔥 Correction : police compatible UTF-8
-        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-        pdf.set_font("DejaVu", '', 16)
+        # Titre
+        story.append(Paragraph("Rapport de Prédiction Random Forest", styles['Title']))
+        story.append(Spacer(1, 12))
 
-        pdf.cell(0, 10, "Rapport de Prédiction Random Forest", ln=True, align="C")
-        pdf.ln(10)
+        # Prédiction
+        story.append(Paragraph(f"Prédiction: {'Favorable' if pred_class==0 else 'Complications possibles'}", styles['Heading2']))
+        story.append(Paragraph(f"Probabilité: {pred_proba:.2f}", styles['Normal']))
+        story.append(Spacer(1, 12))
 
-        pdf.set_font("DejaVu", '', 12)
-        pdf.cell(0, 10, f"Prédiction: {'Favorable' if pred_class==0 else 'Complications possibles'}", ln=True)
-        pdf.cell(0, 10, f"Probabilité: {pred_proba:.2f}", ln=True)
-        pdf.ln(10)
-
-        pdf.cell(0, 10, "Données du patient:", ln=True)
-        pdf.ln(5)
+        # Données patient
+        story.append(Paragraph("Données du patient:", styles['Heading2']))
         for key, value in inputs.items():
-            pdf.cell(0, 8, f"{key} : {value}", ln=True)
+            story.append(Paragraph(f"{key} : {value}", styles['Normal']))
+        story.append(Spacer(1, 12))
 
-        pdf.ln(10)
-        pdf.cell(0, 10, "Recommandations :", ln=True)
-        pdf.ln(5)
-
+        # Recommandations
+        story.append(Paragraph("Recommandations :", styles['Heading2']))
         if pred_class == 0:
             reco = [
                 "Maintenir le suivi médical régulier selon le protocole établi",
@@ -115,24 +107,20 @@ def show_deployment():
                 "Envisager une adaptation thérapeutique (transfusions, traitement symptomatique, hospitalisation préventive)",
                 "Consigner et communiquer toute évolution clinique significative"
             ]
-
         for r in reco:
-            pdf.multi_cell(0, 8, f"- {r}")
+            story.append(Paragraph(f"- {r}", styles['Normal']))
 
-        pdf_buffer = io.BytesIO()
-        pdf.output(pdf_buffer)
-        pdf_buffer.seek(0)
-        return pdf_buffer
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
 
     # --- PREDICTION ---
     if submitted:
         input_df = pd.DataFrame([inputs])
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
-
         for col in model_features:
             if col not in input_df.columns:
                 input_df[col] = 0
-
         input_df = input_df[model_features]
         input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
 
@@ -172,9 +160,9 @@ def show_deployment():
                     <li>Consigner et communiquer toute évolution clinique significative</li>
                 </ul>
             </div>
-            """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)  
 
-        # --- Téléchargement PDF ---
+        # --- Bouton téléchargement PDF ---
         pdf_buffer = generate_pdf(inputs, pred_class, pred_proba)
         st.download_button(
             label="📄 Télécharger le rapport PDF",
