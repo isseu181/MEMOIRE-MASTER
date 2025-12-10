@@ -12,7 +12,7 @@ def show_deployment():
 
     # ---  Style CSS  ---
     st.markdown(""" 
-        /* ... ton CSS existant ... */ 
+        
     """, unsafe_allow_html=True)
 
     st.markdown("<h1>🩺 Déploiement du Modèle Random Forest</h1>", unsafe_allow_html=True)
@@ -173,3 +173,4 @@ def show_deployment():
             file_name="rapport_prediction.pdf",
             mime="application/pdf"
         )
+
