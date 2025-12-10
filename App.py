@@ -12,7 +12,7 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Aller à :", [
     "A Propos",
     "Analyse exploratoire", 
-    "Déploiement du modèle",
+    "Prédiction",
     "Tableau de bord"
 ])
 
@@ -53,22 +53,11 @@ if page == "A Propos":
 elif page == "Analyse exploratoire":
     eda.show_eda()
 
-# ============================
-# Classification non supervisée
-# ============================
-elif page == "Classification non supervisée":
-    clustering.show_clustering()
-
-# ============================
-# Classification supervisée
-# ============================
-elif page == "Classification supervisée":
-    classification.show_classification()
 
 # ============================
 # Déploiement du modèle
 # ============================
-elif page == "Déploiement du modèle":
+elif page == "Prédiction":
     deployment.show_deployment()
 
 # ============================
