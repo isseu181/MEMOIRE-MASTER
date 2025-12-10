@@ -9,4 +9,6 @@ lightgbm
 joblib
 openpyxl
 plotly
+fpdf2
+
 
