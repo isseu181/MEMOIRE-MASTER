@@ -1,7 +1,7 @@
 # app.py
 import streamlit as st
 from PIL import Image
-import eda, clustering, classification, deployment, tableau_de_bord
+import eda, deployment, tableau_de_bord
 
 st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 
@@ -12,7 +12,6 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Aller à :", [
     "A Propos",
     "Analyse exploratoire", 
-    "Classification supervisée",
     "Déploiement du modèle",
     "Tableau de bord"
 ])
