@@ -12,7 +12,7 @@ st.sidebar.title("Navigation")
 page = st.sidebar.radio("Aller à :", [
     "A Propos",
     "Analyse exploratoire", 
-    "Prédiction",
+    "Déploiement du modèle",
     "Tableau de bord"
 ])
 
