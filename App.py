@@ -11,7 +11,8 @@ st.set_page_config(page_title="Analyse USAD Drépanocytose", layout="wide")
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Aller à :", [
     "A Propos",
-    "Analyse exploratoire",
+    "Analyse exploratoire", 
+    "Classification supervisée",
     "Déploiement du modèle",
     "Tableau de bord"
 ])
