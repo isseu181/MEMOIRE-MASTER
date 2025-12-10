@@ -47,17 +47,17 @@ def show_deployment():
 
     st.markdown("###  Remplissez le formulaire du patient pour estimer son évolution clinique")
 
-    # --- FORMULAIRE (ton code existant) ---
+    # --- FORMULAIRE ---
     with st.form("patient_form"):
         inputs = {}
         col1, col2 = st.columns(2)
-        # --- Colonne 1 ---
+
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
-        # --- Colonne 2 ---
+
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
@@ -71,17 +71,22 @@ def show_deployment():
             )
             inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
             inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
+
         submitted = st.form_submit_button("🔮 Prédire")
 
-    # --- Fonction pour générer PDF ---
+    # --- Fonction pour générer PDF (corrigée : police UTF-8) ---
     def generate_pdf(inputs, pred_class, pred_proba):
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
+
+        # 🔥 Correction : police compatible UTF-8
+        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+        pdf.set_font("DejaVu", '', 16)
+
         pdf.cell(0, 10, "Rapport de Prédiction Random Forest", ln=True, align="C")
         pdf.ln(10)
 
-        pdf.set_font("Arial", '', 12)
+        pdf.set_font("DejaVu", '', 12)
         pdf.cell(0, 10, f"Prédiction: {'Favorable' if pred_class==0 else 'Complications possibles'}", ln=True)
         pdf.cell(0, 10, f"Probabilité: {pred_proba:.2f}", ln=True)
         pdf.ln(10)
@@ -94,6 +99,7 @@ def show_deployment():
         pdf.ln(10)
         pdf.cell(0, 10, "Recommandations :", ln=True)
         pdf.ln(5)
+
         if pred_class == 0:
             reco = [
                 "Maintenir le suivi médical régulier selon le protocole établi",
@@ -109,6 +115,7 @@ def show_deployment():
                 "Envisager une adaptation thérapeutique (transfusions, traitement symptomatique, hospitalisation préventive)",
                 "Consigner et communiquer toute évolution clinique significative"
             ]
+
         for r in reco:
             pdf.multi_cell(0, 8, f"- {r}")
 
@@ -121,16 +128,18 @@ def show_deployment():
     if submitted:
         input_df = pd.DataFrame([inputs])
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
+
         for col in model_features:
             if col not in input_df.columns:
                 input_df[col] = 0
+
         input_df = input_df[model_features]
         input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
 
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        # --- Affichage résultat existant ---
+        # --- Affichage résultat ---
         if pred_class == 0:
             st.markdown(f"""
             <div class="prediction-card">
@@ -163,9 +172,9 @@ def show_deployment():
                     <li>Consigner et communiquer toute évolution clinique significative</li>
                 </ul>
             </div>
-            """, unsafe_allow_html=True)  
+            """, unsafe_allow_html=True)
 
-        # --- Bouton téléchargement PDF ---
+        # --- Téléchargement PDF ---
         pdf_buffer = generate_pdf(inputs, pred_class, pred_proba)
         st.download_button(
             label="📄 Télécharger le rapport PDF",
@@ -173,4 +182,3 @@ def show_deployment():
             file_name="rapport_prediction.pdf",
             mime="application/pdf"
         )
-
