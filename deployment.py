@@ -4,6 +4,8 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from fpdf import FPDF
+import io
 
 def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
@@ -86,32 +88,6 @@ def show_deployment():
 
     st.markdown("###  Remplissez le formulaire du patient pour estimer son évolution clinique")
 
-    # --- Dictionnaire des variables ---
-    with st.expander(" Voir les définitions des variables"):
-        st.markdown("""
-        **Variables biologiques :**
-        - **GB (/mm³)** : Valeur du nombre de globules blancs mesuré **en situation d’urgence**.
-        - **PLT (/mm³)** :  Valeur du nombre de plaquettes mesuré **en urgence**.
-        - **Nbre de GB (/mm³)** : Valeur du nombre de globules blancs lors du **suivi régulier**.
-        - **Nbre de PLT (/mm³)** : Valeur du nombre de plaquettes lors du **suivi régulier**.
-        - **HB (g/dl)** : Taux d’hémoglobine mesuré.
-        - **CRP Si positive (Valeur)** : Valeur de la protéine C-réactive lorsqu’elle est positive.
-        - **% d’Hb S / % d’Hb F** : Répartition des fractions d’hémoglobine.
-        - **GR (/mm3)** : Nombre de globules rouges.
-        - **VGM (fl/u3)** : Volume globulaire moyen.
-        - **TCMH (g/dl)** : Teneur corpusculaire moyenne en hémoglobine.
-        
-
-        **Variables cliniques :**
-        - **Pâleur**, **Splénomégalie**, **Souffle systolique fonctionnel** : Observations cliniques binaires (1 = Oui, 0 = Non).
-        - **Niveau d’urgence** : Cotation de 1 à 6 indiquant la gravité clinique.
-        - **Niveau d’instruction scolarité** : Niveau de scolarisation du patient.
-
-        **Autres :**
-        - **Diagnostic catégorisé** : Type principal de diagnostic.
-        - **Mois** : Mois de la consultation ou du suivi.
-        """)
-
     # --- FORMULAIRE ---
     with st.form("patient_form"):
         inputs = {}
@@ -120,80 +96,79 @@ def show_deployment():
         # --- Colonne 1 ---
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
-                help_text = None
-                if var == "GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs mesuré en urgence."
-                elif var == "PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes mesuré en urgence."
-                elif var == "Nbre de GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
-                elif var == "Nbre de PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
-
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[:len(binary_vars)//2]:
-                inputs[var] = st.selectbox(
-                    f"{var} (OUI=1, NON=0)", 
-                    options=[0,1],
-                    help=f"Indique la présence ou non de {var.lower()}."
-                )
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
         # --- Colonne 2 ---
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
-                help_text = None
-                if var == "GB (/mm3)":
-                    help_text = "Taux de globules blancs mesuré en urgence."
-                elif var == "PLT (/mm3)":
-                    help_text = "Taux de plaquettes mesuré en urgence."
-                elif var == "Nbre de GB (/mm3)":
-                    help_text = "Valeur du nombre de globules blancs en suivi régulier."
-                elif var == "Nbre de PLT (/mm3)":
-                    help_text = "Valeur du nombre de plaquettes en suivi régulier."
-                inputs[var] = st.number_input(var, value=0.0, format="%.2f", help=help_text)
-
+                inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[len(binary_vars)//2:]:
-                inputs[var] = st.selectbox(
-                    f"{var} (OUI=1, NON=0)", 
-                    options=[0,1],
-                    help=f"Indique la présence ou non de {var.lower()}."
-                )
+                inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
 
-            inputs['NiveauUrgence'] = st.slider(
-                "Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 
-                1, 6, 1,
-                help="Échelle d’évaluation de la gravité clinique (1 = plus urgente, 6 = moins urgente)."
-            )
-
+            inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
                 options=[0,1,2,3,4],
-                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x],
-                help="Niveau de scolarisation du patient."
+                format_func=lambda x: ["Non","Maternelle","Élémentaire","Secondaire","Supérieur"][x]
             )
-
-            inputs["Diagnostic Catégorisé"] = st.selectbox(
-                "Diagnostic Catégorisé", 
-                options=diagnostic_categories,
-                help="Type de diagnostic principal observé."
-            )
-            inputs["Mois"] = st.selectbox(
-                "Mois", 
-                options=mois_categories,
-                help="Mois de référence de la consultation."
-            )
+            inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
+            inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
 
         submitted = st.form_submit_button("🔮 Prédire")
+
+    # --- Fonction pour générer PDF ---
+    def generate_pdf(inputs, pred_class, pred_proba):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", 'B', 16)
+        pdf.cell(0, 10, "Rapport de Prédiction Random Forest", ln=True, align="C")
+        pdf.ln(10)
+
+        pdf.set_font("Arial", '', 12)
+        pdf.cell(0, 10, f"Prédiction: {'Favorable' if pred_class==0 else 'Complications possibles'}", ln=True)
+        pdf.cell(0, 10, f"Probabilité: {pred_proba:.2f}", ln=True)
+        pdf.ln(10)
+
+        pdf.cell(0, 10, "Données du patient:", ln=True)
+        pdf.ln(5)
+        for key, value in inputs.items():
+            pdf.cell(0, 8, f"{key} : {value}", ln=True)
+
+        pdf.ln(10)
+        pdf.cell(0, 10, "Recommandations :", ln=True)
+        pdf.ln(5)
+        if pred_class == 0:
+            reco = [
+                "Maintenir le suivi médical régulier selon le protocole établi",
+                "Poursuivre la prophylaxie médicamenteuse et la couverture vaccinale",
+                "Surveiller périodiquement les constantes biologiques (Hb, GB, PLT, CRP)",
+                "Documenter toute modification clinique dans le dossier patient"
+            ]
+        else:
+            reco = [
+                "Renforcer le suivi médical rapproché et la fréquence des bilans",
+                "Réévaluer la prophylaxie, le traitement de fond et l’observance thérapeutique",
+                "Surveiller de près les signes cliniques d’alerte : fièvre, pâleur, douleurs osseuses ou abdominales",
+                "Envisager une adaptation thérapeutique (transfusions, traitement symptomatique, hospitalisation préventive)",
+                "Consigner et communiquer toute évolution clinique significative"
+            ]
+        for r in reco:
+            pdf.multi_cell(0, 8, f"- {r}")
+
+        pdf_buffer = io.BytesIO()
+        pdf.output(pdf_buffer)
+        pdf_buffer.seek(0)
+        return pdf_buffer
 
     # --- PREDICTION ---
     if submitted:
         input_df = pd.DataFrame([inputs])
         input_df = pd.get_dummies(input_df, columns=["Diagnostic Catégorisé","Mois"])
-
         for col in model_features:
             if col not in input_df.columns:
                 input_df[col] = 0
-
         input_df = input_df[model_features]
         input_df[quantitative_vars] = scaler.transform(input_df[quantitative_vars])
 
@@ -217,7 +192,6 @@ def show_deployment():
                 </ul>
             </div>
             """, unsafe_allow_html=True)
-
         else:
             st.markdown(f"""
             <div class="prediction-card-bad">
@@ -236,10 +210,11 @@ def show_deployment():
             </div>
             """, unsafe_allow_html=True)  
 
-
-
-
-
-
-
-
+        # --- Bouton de téléchargement PDF ---
+        pdf_buffer = generate_pdf(inputs, pred_class, pred_proba)
+        st.download_button(
+            label="📄 Télécharger le rapport PDF",
+            data=pdf_buffer,
+            file_name="rapport_prediction.pdf",
+            mime="application/pdf"
+        )
