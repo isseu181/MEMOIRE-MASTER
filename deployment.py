@@ -11,48 +11,8 @@ def show_deployment():
     st.set_page_config(page_title="Déploiement Random Forest", layout="wide")
 
     # ---  Style CSS  ---
-    st.markdown("""
-        <style>
-        body {
-            background-color: #f5f9f6;
-        }
-        .stApp {
-            background-color: #f5f9f6;
-        }
-        h1 {
-            text-align: center;
-            color: #0b6e4f;
-            font-weight: bold;
-        }
-        .prediction-card {
-            padding: 20px;
-            border-radius: 15px;
-            background-color: #e8f5e9;
-            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        .prediction-card-bad {
-            padding: 20px;
-            border-radius: 15px;
-            background-color: #ffebee;
-            box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-        .reco {
-            background-color: #ffffff;
-            border-left: 5px solid #0b6e4f;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 10px;
-        }
-        .reco-bad {
-            background-color: #ffffff;
-            border-left: 5px solid #b71c1c;
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 10px;
-        }
-        </style>
+    st.markdown(""" 
+        /* ... ton CSS existant ... */ 
     """, unsafe_allow_html=True)
 
     st.markdown("<h1>🩺 Déploiement du Modèle Random Forest</h1>", unsafe_allow_html=True)
@@ -65,7 +25,7 @@ def show_deployment():
         st.error("Impossible de charger le modèle ou le scaler.")
         return
 
-    # --- Variables ---
+    # --- Variables (quantitative_vars, binary_vars, model_features, etc.) ---
     quantitative_vars = [
         'Âge de début des signes (en mois)','GR (/mm3)','GB (/mm3)',
         'Âge du debut d etude en mois (en janvier 2023)','VGM (fl/u3)','HB (g/dl)',
@@ -74,7 +34,6 @@ def show_deployment():
         'Nbre de transfusion avant 2017','Nbre de transfusion Entre 2017 et 2023',
         'CRP Si positive (Valeur)',"Taux d'Hb (g/dL)","% d'Hb S","% d'Hb F"
     ]
-
     binary_vars = [
         'Pâleur','Souffle systolique fonctionnel','Vaccin contre méningocoque',
         'Splénomégalie','Prophylaxie à la pénicilline','Parents Salariés',
@@ -88,25 +47,22 @@ def show_deployment():
 
     st.markdown("###  Remplissez le formulaire du patient pour estimer son évolution clinique")
 
-    # --- FORMULAIRE ---
+    # --- FORMULAIRE (ton code existant) ---
     with st.form("patient_form"):
         inputs = {}
         col1, col2 = st.columns(2)
-
         # --- Colonne 1 ---
         with col1:
             for var in quantitative_vars[:len(quantitative_vars)//2]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[:len(binary_vars)//2]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
-
         # --- Colonne 2 ---
         with col2:
             for var in quantitative_vars[len(quantitative_vars)//2:]:
                 inputs[var] = st.number_input(var, value=0.0, format="%.2f")
             for var in binary_vars[len(binary_vars)//2:]:
                 inputs[var] = st.selectbox(f"{var} (OUI=1, NON=0)", options=[0,1])
-
             inputs['NiveauUrgence'] = st.slider("Niveau d'urgence (1=Urgence1 ... 6=Urgence6)", 1, 6, 1)
             inputs["Niveau d'instruction scolarité"] = st.selectbox(
                 "Niveau d'instruction scolarité",
@@ -115,7 +71,6 @@ def show_deployment():
             )
             inputs["Diagnostic Catégorisé"] = st.selectbox("Diagnostic Catégorisé", options=diagnostic_categories)
             inputs["Mois"] = st.selectbox("Mois", options=mois_categories)
-
         submitted = st.form_submit_button("🔮 Prédire")
 
     # --- Fonction pour générer PDF ---
@@ -175,7 +130,7 @@ def show_deployment():
         pred_proba = model.predict_proba(input_df)[:,1][0]
         pred_class = model.predict(input_df)[0]
 
-        # --- Résultats et recommandations ---
+        # --- Affichage résultat existant ---
         if pred_class == 0:
             st.markdown(f"""
             <div class="prediction-card">
@@ -210,7 +165,7 @@ def show_deployment():
             </div>
             """, unsafe_allow_html=True)  
 
-        # --- Bouton de téléchargement PDF ---
+        # --- Bouton téléchargement PDF ---
         pdf_buffer = generate_pdf(inputs, pred_class, pred_proba)
         st.download_button(
             label="📄 Télécharger le rapport PDF",
